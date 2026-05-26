@@ -7,3 +7,6 @@
 [submodule "raylib"]
 	path = raylib
 	url = https://github.com/raysan5/raylib
+[submodule "sparkfun-pico"]
+	path = sparkfun-pico
+	url = https://github.com/NighthowlerStudios/sparkfun-pico
