@@ -12,15 +12,19 @@
 #ifndef DIRENT_H_PICO2_STUB
 #define DIRENT_H_PICO2_STUB
 
-// Stub types - not actually used on Pico2
+// Stub types
 typedef struct DIR DIR;
 struct dirent {
     char d_name[256];
 };
 
 // Stub functions - return NULL/error to indicate not supported
+#ifndef SD_CARD
 static inline DIR *opendir(const char *name) { return NULL; }
 static inline struct dirent *readdir(DIR *dirp) { return NULL; }
 static inline int closedir(DIR *dirp) { return -1; }
+#else
+// TODO: implement SD card library
+#endif
 
 #endif // DIRENT_H_PICO2_STUB

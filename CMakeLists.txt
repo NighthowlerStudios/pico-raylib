@@ -90,6 +90,20 @@ project(pico_raylib
 pico_sdk_init()
 pico_find_compiler(PICO_COMPILER_LD ${PICO_GCC_TRIPLE}-ld)
 
+# Automatically use PSRAM thanks to the Pico SDK's wrap functionality.
+set(SKIP_PICO_MALLOC 1)
+set(SFE_PICO_ALLOC_WRAP 1)
+
+# https://github.com/georgik/esp-idf-component-raylib/blob/538523e3fb1d3cb8cda3001a189e129bd8482c36/raylib/CMakeLists.txt#L23
+set(raylib_defs
+    SFE_PICO_ALLOC_WRAP
+    GRAPHICS_API_OPENGL_SOFTWARE
+    PLATFORM_CUSTOM
+    SW_COLOR_BUFFER_BITS=16
+    SW_DEPTH_BUFFER_BITS=16
+    SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
+)
+
 set(raylib_sources
     "raylib/src/rcore.c"
     "raylib/src/rtext.c"
@@ -101,11 +115,17 @@ if (AUX_AUDIO)
     list(APPEND raylib_sources
         "raylib/src/raudio.c"
     )
+    list(APPEND raylib_defs
+        AUX_AUDIO
+    )
 endif()
 
 if (SD_CARD)
     list(APPEND raylib_sources
         "raylib/src/rmodels.c"
+    )
+    list(APPEND raylib_defs
+        SD_CARD
     )
 endif()
 
@@ -114,19 +134,37 @@ add_library(pico_raylib
     "src/rcore_pico.c"
 )
 
+add_subdirectory("sparkfun-pico/sparkfun_pico")
+
+
 target_include_directories(pico_raylib PUBLIC
     "include" # Force our stubs to override raylib
     "raylib/src"
     "raylib/src/external"
 )
 
-# https://github.com/georgik/esp-idf-component-raylib/blob/538523e3fb1d3cb8cda3001a189e129bd8482c36/raylib/CMakeLists.txt#L23
+pico_enable_stdio_usb(pico_raylib 1)
+
+target_link_libraries(pico_raylib PUBLIC
+    pico_stdlib
+    # Hardware accelerate float and double.
+    pico_float
+    pico_double
+
+    # Replace default allocators with PSRAM ones.
+    sparkfun_pico
+
+    hardware_clocks
+    hardware_spi
+    hardware_pio
+    hardware_dma
+    hardware_interp
+    hardware_timer
+    hardware_clocks
+)
+
 target_compile_definitions(pico_raylib PUBLIC
-    GRAPHICS_API_OPENGL_SOFTWARE
-    PLATFORM_CUSTOM
-    SW_COLOR_BUFFER_BITS=16
-    SW_DEPTH_BUFFER_BITS=16
-    SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
+    ${raylib_defs}
 )
 
 target_compile_options(pico_raylib PUBLIC

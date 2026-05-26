@@ -18,13 +18,6 @@
 #define SW_FRAMEBUFFER_COLOR_TYPE R5G6B5
 #define SW_FRAMEBUFFER_OUTPUT_BGRA false
 
-// Define software renderer memory allocators BEFORE raylib's rlgl.h tries to define them
-// These macros will be used by the software renderer (rlsw.h)
-// TODO
-//#define SW_MALLOC(sz) heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
-//#define SW_REALLOC(ptr, newSz) heap_caps_realloc(ptr, newSz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
-//#define SW_FREE(ptr) heap_caps_free(ptr)
-
 //------------------------------------------------------------------------------------
 // Module selection - Minimal set for embedded 2D rendering
 //------------------------------------------------------------------------------------
@@ -114,10 +107,10 @@
 #define SUPPORT_FILEFORMAT_JPG      1
 #define SUPPORT_FILEFORMAT_GIF      1
 #define SUPPORT_FILEFORMAT_QOI      1
-#define SUPPORT_FILEFORMAT_PSD      1
+#define SUPPORT_FILEFORMAT_PSD      0
 #define SUPPORT_FILEFORMAT_DDS      1
-#define SUPPORT_FILEFORMAT_HDR      1
-#define SUPPORT_FILEFORMAT_PIC      1
+#define SUPPORT_FILEFORMAT_HDR      0
+#define SUPPORT_FILEFORMAT_PIC      0
 #define SUPPORT_FILEFORMAT_KTX      1
 #define SUPPORT_FILEFORMAT_ASTC     1
 

@@ -365,12 +365,14 @@ double GetTime(void)
 // Ref: https://github.com/raysan5/raylib/issues/686
 void OpenURL(const char *url)
 {
+    // TODO: Research possibilities for opening FTPs etc.
+
     // Security check to (partially) avoid malicious code on target platform
-    if (strchr(url, '\'') != NULL) TRACELOG(LOG_WARNING, "SYSTEM: Provided URL could be potentially malicious, avoid [\'] character");
-    else
-    {
+    //if (strchr(url, '\'') != NULL) TRACELOG(LOG_WARNING, "SYSTEM: Provided URL could be potentially malicious, avoid [\'] character");
+    //else
+    //{
         // TODO: Load url using default browser
-    }
+    //}
 }
 
 //----------------------------------------------------------------------------------
