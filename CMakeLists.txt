@@ -87,12 +87,12 @@ project(pico_raylib
     LANGUAGES C CXX ASM
 )
 
-pico_sdk_init()
-pico_find_compiler(PICO_COMPILER_LD ${PICO_GCC_TRIPLE}-ld)
-
 # Automatically use PSRAM thanks to the Pico SDK's wrap functionality.
 set(SKIP_PICO_MALLOC 1)
 set(SFE_PICO_ALLOC_WRAP 1)
+
+pico_sdk_init()
+pico_find_compiler(PICO_COMPILER_LD ${PICO_GCC_TRIPLE}-ld)
 
 # https://github.com/georgik/esp-idf-component-raylib/blob/538523e3fb1d3cb8cda3001a189e129bd8482c36/raylib/CMakeLists.txt#L23
 set(raylib_defs
@@ -135,7 +135,6 @@ add_library(pico_raylib
 )
 
 add_subdirectory("sparkfun-pico/sparkfun_pico")
-
 
 target_include_directories(pico_raylib PUBLIC
     "include" # Force our stubs to override raylib

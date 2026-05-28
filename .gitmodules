@@ -6,7 +6,7 @@
 	url = https://github.com/Pimoroni/pimoroni-pico
 [submodule "raylib"]
 	path = raylib
-	url = https://github.com/raysan5/raylib
+	url = https://github.com/NighthowlerStudios/raylib
 [submodule "sparkfun-pico"]
 	path = sparkfun-pico
 	url = https://github.com/NighthowlerStudios/sparkfun-pico
