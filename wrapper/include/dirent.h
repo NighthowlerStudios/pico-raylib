@@ -8,9 +8,11 @@
 *   This prevents compilation errors when raylib tries to include <dirent.h>
 *
 **********************************************************************************************/
-
 #ifndef DIRENT_H_PICO2_STUB
 #define DIRENT_H_PICO2_STUB
+
+// Silence IDE errors.
+#include <cstddef>
 
 // Stub types
 typedef struct DIR DIR;
@@ -24,7 +26,7 @@ static inline DIR *opendir(const char *name) { return NULL; }
 static inline struct dirent *readdir(DIR *dirp) { return NULL; }
 static inline int closedir(DIR *dirp) { return -1; }
 #else
-// TODO: implement SD card library
+// TODO: implement SD card library as a file system
 #endif
 
 #endif // DIRENT_H_PICO2_STUB

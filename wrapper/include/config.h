@@ -11,8 +11,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// Include Pico SDK headers for memory allocation.  TODO
-
 // Configure software renderer to use RGB565 internally (like Raylib 5.6.0)
 // This avoids format conversion and matches the working version
 #define SW_FRAMEBUFFER_COLOR_TYPE R5G6B5

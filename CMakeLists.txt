@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 set(CMAKE_C_STANDARD 11)
+# We're forced to define these by the Pico SDK.
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -30,21 +31,21 @@ elseif (PICO_PLATFORM STREQUAL "rp2040")
 endif()
 
 enum_option(RAYLIB_DISPLAY 
-    "ST7789;Pimoroni VGA Demo;DVI" 
+    "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout" 
     "Which video output is wired up?"
 )
 enum_option(RAYLIB_BOARD 
-    "Pimoroni Pico Plus2;Pimoroni Pico Plus2 W" 
+    "Pimoroni_Pico_Plus2;Pimoroni_Pico_Plus2_W" 
     "Which RP2350 board is being used?"
 )
 
-if (RAYLIB_DISPLAY STREQUAL "Pimoroni VGA Demo")
+if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
     set(PICO_BOARD "vgaboard")
 else()
-    if (RAYLIB_BOARD STREQUAL "Pimoroni Pico Plus2")
+    if (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2")
         set(PICO_BOARD "pimoroni_pico_plus2_rp2350")
     endif()
-    if (RAYLIB_BOARD STREQUAL "Pimoroni Pico Plus2 W")
+    if (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2_W")
         set(PICO_BOARD "pimoroni_pico_plus2_w_rp2350")
     endif()
 endif()
@@ -104,6 +105,8 @@ set(raylib_defs
     SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
 )
 
+# We rip apart the raylib sources to stub some of the defines for now.
+
 set(raylib_sources
     "raylib/src/rcore.c"
     "raylib/src/rtext.c"
@@ -129,22 +132,24 @@ if (SD_CARD)
     )
 endif()
 
-add_library(pico_raylib
+add_library(pico_raylib INTERFACE)
+
+target_sources(pico_raylib INTERFACE
     ${raylib_sources}
-    "src/rcore_pico.c"
+    "wrapper/src/rcore_pico.c"
 )
 
 add_subdirectory("sparkfun-pico/sparkfun_pico")
 
-target_include_directories(pico_raylib PUBLIC
-    "include" # Force our stubs to override raylib
+target_include_directories(pico_raylib INTERFACE
+    "wrapper/include" # Force our stubs to override raylib
     "raylib/src"
     "raylib/src/external"
 )
 
 pico_enable_stdio_usb(pico_raylib 1)
 
-target_link_libraries(pico_raylib PUBLIC
+set(pico_libraries
     pico_stdlib
     # Hardware accelerate float and double.
     pico_float
@@ -155,18 +160,33 @@ target_link_libraries(pico_raylib PUBLIC
 
     hardware_clocks
     hardware_spi
+    hardware_pwm
     hardware_pio
     hardware_dma
     hardware_interp
     hardware_timer
-    hardware_clocks
 )
 
-target_compile_definitions(pico_raylib PUBLIC
+# Unfortunately we can't use most third party's drivers as they're usually implemented with pico_graphics.
+# pico_graphics allocates its own framebuffer, wasting SRAM.
+# So we need to implement our own drivers.
+
+if(RAYLIB_DISPLAY STREQUAL "Pimoroni_Display_Pack_2.8")
+    add_subdirectory("optionals/pimoroni_display_pack_28")
+    list(APPEND pico_libraries
+        pimoroni_display_pack_28
+    )
+endif()
+
+target_link_libraries(pico_raylib INTERFACE
+    ${pico_libraries}
+)
+
+target_compile_definitions(pico_raylib INTERFACE
     ${raylib_defs}
 )
 
-target_compile_options(pico_raylib PUBLIC
+target_compile_options(pico_raylib INTERFACE
     -I${CMAKE_CURRENT_LIST_DIR}/include          # Custom config.h takes precedence
     -Wno-incompatible-pointer-types              # M3D and software renderer compatibility
     -Wno-uninitialized

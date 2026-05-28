@@ -50,7 +50,9 @@
 #include "rlgl.h"
 #include <string.h>
 
-// TODO: Include the platform specific libraries
+// All display devices are interfaced to this single header.  
+// Only one optional library is selected at a time in CMakeLists.txt
+#include "pico_display.h"
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
