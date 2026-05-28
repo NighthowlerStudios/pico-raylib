@@ -171,12 +171,19 @@ set(pico_libraries
 # pico_graphics allocates its own framebuffer, wasting SRAM.
 # So we need to implement our own drivers.
 
-if(RAYLIB_DISPLAY STREQUAL "Pimoroni_Display_Pack_2.8")
-    add_subdirectory("optionals/pimoroni_display_pack_28")
-    list(APPEND pico_libraries
-        pimoroni_display_pack_28
-    )
-endif()
+# Take the name of the enum as the directory name in optionals.
+string(TOLOWER ${RAYLIB_DISPLAY} raylib_display_lower)
+string(GENEX_STRIP ${raylib_display_lower} raylib_display_lower)
+# For convenient naming availability, strip some characters out to keep the folder names standardised.
+string(REPLACE "." "" raylib_display_lower ${raylib_display_lower})
+
+message(STATUS "Selected display: ${RAYLIB_DISPLAY} (${raylib_display_lower})")
+
+# Only one target display is allowed.
+add_subdirectory("optionals/${raylib_display_lower}")
+list(APPEND pico_libraries
+    "${raylib_display_lower}"
+)
 
 target_link_libraries(pico_raylib INTERFACE
     ${pico_libraries}
