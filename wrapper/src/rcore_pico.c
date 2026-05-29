@@ -58,15 +58,16 @@
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
 typedef struct {
-    // Placeholder member to avoid empty struct (which is invalid in C99)
     int placeholder;
-    // TODO: Define additional platform specific variables if required
 
 } PlatformData;
 
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
+// Found in rcore.c
+extern CoreData CORE;    // Global CORE state data
+
 static PlatformData platform = { 0 };   // Platform specific data
 
 //----------------------------------------------------------------------------------
@@ -80,6 +81,23 @@ bool InitGraphicsDevice(void);   // Initialize graphics device
 //----------------------------------------------------------------------------------
 // NOTE: Functions declaration is provided by raylib.h
 
+// yoinked from rlsw.h
+// Clamp an integer.
+static inline int clamp_int(int v, int min, int max)
+{
+    if (v < min) return min;
+    if (v > max) return max;
+    return v;
+}
+
+// Clamp a float.
+static inline int clamp_float(float v, float min, float max)
+{
+    if (v < min) return min;
+    if (v > max) return max;
+    return v;
+}
+
 //----------------------------------------------------------------------------------
 // Module Functions Definition: Window and Graphics Device
 //----------------------------------------------------------------------------------
@@ -87,98 +105,155 @@ bool InitGraphicsDevice(void);   // Initialize graphics device
 // Check if application should close
 bool WindowShouldClose(void)
 {
-    // TODO: Implement optional kill switches using the Pico Display 2.8 buttons etc.
-    return false;
+    // If the system is ready, it'll check for the should close.
+    // The system becomes no longer ready after CloseWindow is called.  
+    // Thus this function just lets the programmer escape their endless loop.
+    // We allow this on Pico as the default bootloader has a sleep mode when main returns.
+    if (CORE.Window.ready) return CORE.Window.shouldClose;
+    return true;
 }
 
 // Toggle fullscreen mode
 void ToggleFullscreen(void)
 {
+    // Pico is "always in full screen"
     TRACELOG(LOG_WARNING, "ToggleFullscreen() not available on target platform");
 }
 
 // Toggle borderless windowed mode
 void ToggleBorderlessWindowed(void)
 {
+    // Pico is "always in full screen"
     TRACELOG(LOG_WARNING, "ToggleBorderlessWindowed() not available on target platform");
 }
 
 // Set window state: maximized, if resizable
 void MaximizeWindow(void)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "MaximizeWindow() not available on target platform");
 }
 
 // Set window state: minimized
 void MinimizeWindow(void)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "MinimizeWindow() not available on target platform");
 }
 
 // Restore window from being minimized/maximized
 void RestoreWindow(void)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "RestoreWindow() not available on target platform");
 }
 
 // Set window configuration state using flags
 void SetWindowState(unsigned int flags)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "SetWindowState() not available on target platform");
 }
 
 // Clear window configuration state flags
 void ClearWindowState(unsigned int flags)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "ClearWindowState() not available on target platform");
 }
 
 // Set icon for window
 void SetWindowIcon(Image image)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "SetWindowIcon() not available on target platform");
 }
 
 // Set icon for window
 void SetWindowIcons(Image *images, int count)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "SetWindowIcons() not available on target platform");
 }
 
 // Set title for window
 void SetWindowTitle(const char *title)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "SetWindowTitle() not available on target platform");
 }
 
 // Set window position on screen (windowed mode)
 void SetWindowPosition(int x, int y)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "SetWindowPosition() not available on target platform");
 }
 
 // Set monitor for the current window
 void SetWindowMonitor(int monitor)
 {
+    // Pico has no windowing system.
     TRACELOG(LOG_WARNING, "SetWindowMonitor() not available on target platform");
 }
+
+// This library supports many display targets, including VGA and DVI.
+// Since the device is expected to have PSRAM, we can let those outputs adjust their scale.
+// LCDs etcetera must cap to their hardware limits instead.
 
 // Set window minimum dimensions (FLAG_WINDOW_RESIZABLE)
 void SetWindowMinSize(int width, int height)
 {
-    // TODO: Resize based on either LCD hardware, or VGA/DVI Option.
+    // The programmer can set a cap for a "player's options" in here.
+    int newWidth = width;
+    int newHeight = height;
+
+    GetMinimumResolution(&newWidth, &newHeight);
+
+    if (width == newWidth && height == newHeight)
+    {
+        TRACELOG(LOG_WARNING, "SetWindowMinSize() was clamped back to (", newWidth, ",", newHeight, ")");
+    }
+
+    CORE.Window.screenMin.width = newWidth;
+    CORE.Window.screenMin.height = newHeight;
 }
 
 // Set window maximum dimensions (FLAG_WINDOW_RESIZABLE)
 void SetWindowMaxSize(int width, int height)
 {
-    // TODO: Resize based on either LCD hardware, or VGA/DVI Option.
+    // The programmer can set a cap for a "player's options" in here.
+    int newWidth = width;
+    int newHeight = height;
+    
+    GetMaximumResolution(&newWidth, &newHeight);
+
+    if (width == newWidth && height == newHeight)
+    {
+        TRACELOG(LOG_WARNING, "SetWindowMaxSize() was clamped back to (", newWidth, ",", newHeight, ")");
+    }
+
+    CORE.Window.screenMax.width = newWidth;
+    CORE.Window.screenMax.height = newHeight;
 }
 
 // Set window dimensions
 void SetWindowSize(int width, int height)
 {
-    // TODO: Resize based on either LCD hardware, or VGA/DVI Option.
+    int newWidth = width;
+    int newHeight = height;
+
+    newWidth = clamp_int(newWidth, CORE.Window.screenMin.width, CORE.Window.screenMax.width);
+    newHeight = clamp_int(newHeight, CORE.Window.screenMin.height, CORE.Window.screenMax.height);
+
+    if (width == newWidth && height == newHeight)
+    {
+        TRACELOG(LOG_WARNING, "SetWindowSize() was clamped back to (", newWidth, ",", newHeight, ")");
+    }
+
+    SetupViewport(newWidth, newHeight);
+
+    // TODO: actually reallocate all three buffers (depth, color, back color) to the new size.
 }
 
 // Set window opacity, value opacity is between 0.0 and 1.0
