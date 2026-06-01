@@ -48,7 +48,8 @@
 #include "config.h"         // Must be first to set SW_FRAMEBUFFER_COLOR_TYPE before rlgl.h
 #include "raylib.h"
 #include "rlgl.h"
-#include <string.h>
+
+#include "hardware/timer.h"
 
 // All display devices are interfaced to this single header.  
 // Only one optional library is selected at a time in CMakeLists.txt
@@ -329,8 +330,7 @@ int GetMonitorRefreshRate(int monitor)
 {
     // SPI devices don't refresh in scanlines, and VGA ones cannot be reliably clocked to different values.  So no good purpose here.
     TRACELOG(LOG_WARNING, "GetMonitorRefreshRate() not implemented on target platform");
-    // Assume 60 over VGA.  
-    return 60;
+    return 0;
 }
 
 // Get the human-readable, UTF-8 encoded name of the selected monitor
@@ -425,20 +425,14 @@ void SwapScreenBuffer(void)
 // Module Functions Definition: Misc
 //----------------------------------------------------------------------------------
 
+
 // Get elapsed time measure in seconds since InitTimer()
 double GetTime(void)
 {
-    double time = 0.0;
+    // InitTimer calls this, so it doesn't matter what the value of the hardware timer was here.
+    // Because that will then be used as the start.
 
-    // TODO
-
-    //struct timespec ts = { 0 };
-    //clock_gettime(CLOCK_MONOTONIC, &ts);
-    //unsigned long long nanoSeconds = (unsigned long long)ts.tv_sec*1000000000LLU + (unsigned long long)ts.tv_nsec;
-
-    //time = (double)(nanoSeconds - CORE.Time.base)*1e-9; // Elapsed time since InitTimer()
-
-    return time;
+    return (double)time_us_64() / 1000000.0;
 }
 
 // Open URL with default system browser (if available)
@@ -478,9 +472,8 @@ void SetGamepadVibration(int gamepad, float leftMotor, float rightMotor, float d
 // Set mouse position XY
 void SetMousePosition(int x, int y)
 {
-    // TODO
-    //CORE.Input.Mouse.currentPosition = (Vector2){ (float)x, (float)y };
-    //CORE.Input.Mouse.previousPosition = CORE.Input.Mouse.currentPosition;
+    CORE.Input.Mouse.currentPosition = (Vector2){ (float)x, (float)y };
+    CORE.Input.Mouse.previousPosition = CORE.Input.Mouse.currentPosition;
 }
 
 // Set mouse cursor
@@ -513,7 +506,6 @@ int InitPlatform(void)
     // It usually requires setting up the platform display system configuration
     // and connexion with the GPU through some system graphic API
     // raylib uses OpenGL so, platform should create that kind of connection
-    // Below example illustrates that process using EGL library
     //----------------------------------------------------------------------------
 
     // TODO: Init display and graphic device
@@ -538,7 +530,7 @@ int InitPlatform(void)
 
     // TODO: Initialize timing system
     //----------------------------------------------------------------------------
-    //InitTimer();
+    InitTimer();
     //----------------------------------------------------------------------------
 
     // TODO: Initialize storage system
@@ -546,7 +538,7 @@ int InitPlatform(void)
     //CORE.Storage.basePath = GetWorkingDirectory();
     //----------------------------------------------------------------------------
 
-    TRACELOG(LOG_INFO, "PLATFORM: CUSTOM: Initialized successfully");
+    TRACELOG(LOG_INFO, "PLATFORM: RP2350: Initialized successfully");
 
     return 0;
 }

@@ -1,6 +1,6 @@
 /**********************************************************************************************
 *
-*   rlsw_esp_idf.h - Override rlsw memory allocators and configure for ESP-IDF
+*   rlsw_pico.h - Override rlsw memory allocators and configure for Pico2
 *
 *   This header must be included BEFORE rlsw.h to override defaults
 *

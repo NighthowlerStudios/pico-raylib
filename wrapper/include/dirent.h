@@ -11,9 +11,6 @@
 #ifndef DIRENT_H_PICO2_STUB
 #define DIRENT_H_PICO2_STUB
 
-// Silence IDE errors.
-#include <cstddef>
-
 // Stub types
 typedef struct DIR DIR;
 struct dirent {
