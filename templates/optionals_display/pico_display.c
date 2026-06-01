@@ -3,6 +3,7 @@
 
 #include "pico_display.h"
 
+KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST] = { 0 };
 Orientation currentOrientation;
 
 void GetMinimumResolution(int* width, int* height)
@@ -17,22 +18,12 @@ void GetMaximumResolution(int* width, int* height)
     *height = 240;
 }
 
-int GetMonitorWidth()
+void InitInput()
 {
-    return 0;
+
 }
 
-int GetMonitorHeight()
+void PollInput()
 {
-    return 0;
-}
 
-void SetMonitorOrientation(Orientation orientation)
-{
-    currentOrientation = orientation;
-}
-
-Orientation GetMonitorOrientation()
-{
-    return currentOrientation;
 }

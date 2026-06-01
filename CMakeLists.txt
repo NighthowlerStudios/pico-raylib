@@ -165,6 +165,9 @@ set(pico_libraries
     hardware_dma
     hardware_interp
     hardware_timer
+
+    # I/O
+    button
 )
 
 # Unfortunately we can't use most third party's drivers as they're usually implemented with pico_graphics.

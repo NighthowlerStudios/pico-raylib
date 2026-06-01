@@ -491,8 +491,47 @@ const char *GetKeyName(int key)
 
 // Register all input events
 void PollInputEvents(void)
-{
-    // TODO: Poll input events for current platform
+{    
+#if SUPPORT_GESTURES_SYSTEM
+    // NOTE: Gestures update must be called every frame to reset gestures correctly
+    // because ProcessGestureEvent() is called on an event, not every frame
+    UpdateGestures();
+#endif
+
+    // Reset keys/chars pressed registered
+    CORE.Input.Keyboard.keyPressedQueueCount = 0;
+    CORE.Input.Keyboard.charPressedQueueCount = 0;
+
+    // Reset mouse wheel
+    CORE.Input.Mouse.currentWheelMove.x = 0;
+    CORE.Input.Mouse.currentWheelMove.y = 0;
+
+    PollInput();
+
+    for (int i = 0; i < NUM_BUTTONS_TO_TEST; i++)
+    {
+        if (picoButtons[i] != KEY_NULL)
+        {
+            // If key was up, add it to the key pressed queue
+            KeyboardKey key = picoButtons[i];
+            if ((CORE.Input.Keyboard.currentKeyState[picoButtons[i]] == 0) && (CORE.Input.Keyboard.keyPressedQueueCount < MAX_KEY_PRESSED_QUEUE))
+            {
+                CORE.Input.Keyboard.keyPressedQueue[CORE.Input.Keyboard.keyPressedQueueCount] = picoButtons[i];
+                CORE.Input.Keyboard.keyPressedQueueCount++;
+            }
+
+            CORE.Input.Keyboard.currentKeyState[picoButtons[i]] = 1;
+        }
+        else
+        {
+            CORE.Input.Keyboard.currentKeyState[picoButtons[i]] = 0;
+        }
+    }
+
+    if (CORE.Input.Keyboard.currentKeyState[CORE.Input.Keyboard.exitKey]) 
+    {
+        CORE.window.ShouldClose = true;
+    }
 }
 
 //----------------------------------------------------------------------------------
@@ -527,6 +566,8 @@ int InitPlatform(void)
     //----------------------------------------------------------------------------
     // ...
     //----------------------------------------------------------------------------
+
+    InitInput();
 
     // TODO: Initialize timing system
     //----------------------------------------------------------------------------

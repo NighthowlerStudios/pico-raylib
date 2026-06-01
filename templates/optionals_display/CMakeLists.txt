@@ -12,5 +12,5 @@ target_link_libraries(pimoroni_display_pack_28 INTERFACE
     hardware_dma
     hardware_clocks
     hardware_timer
-    
+    hardware_gpio
 )
