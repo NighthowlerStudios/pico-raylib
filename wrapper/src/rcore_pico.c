@@ -253,7 +253,7 @@ void SetWindowSize(int width, int height)
 
     SetupViewport(newWidth, newHeight);
 
-    // TODO: actually reallocate all three buffers (depth, color, back color) to the new size.
+    // TODO: actually reallocate all three buffers (depth, color, back color) to the new size.  This needs to be done inside of rlsw.
 }
 
 // Set window opacity, value opacity is between 0.0 and 1.0
@@ -299,20 +299,19 @@ Vector2 GetMonitorPosition(int monitor)
 // Get selected monitor width (currently used by monitor)
 int GetMonitorWidth(int monitor)
 {
-    // TODO
-    return 0;
+    return CORE.Window.screen.width;
 }
 
 // Get selected monitor height (currently used by monitor)
 int GetMonitorHeight(int monitor)
 {
-    // TODO
-    return 0;
+    return CORE.Window.screen.height;
 }
 
 // Get selected monitor physical width in millimetres
 int GetMonitorPhysicalWidth(int monitor)
 {
+    // No hardware identification communication channels over VGA or SPI.
     TRACELOG(LOG_WARNING, "GetMonitorPhysicalWidth() not implemented on target platform");
     return 0;
 }
@@ -320,6 +319,7 @@ int GetMonitorPhysicalWidth(int monitor)
 // Get selected monitor physical height in millimetres
 int GetMonitorPhysicalHeight(int monitor)
 {
+    // No hardware identification communication channels over VGA or SPI.
     TRACELOG(LOG_WARNING, "GetMonitorPhysicalHeight() not implemented on target platform");
     return 0;
 }
@@ -327,15 +327,21 @@ int GetMonitorPhysicalHeight(int monitor)
 // Get selected monitor refresh rate
 int GetMonitorRefreshRate(int monitor)
 {
+    // SPI devices don't refresh in scanlines, and VGA ones cannot be reliably clocked to different values.  So no good purpose here.
     TRACELOG(LOG_WARNING, "GetMonitorRefreshRate() not implemented on target platform");
-    return 0;
+    // Assume 60 over VGA.  
+    return 60;
 }
 
 // Get the human-readable, UTF-8 encoded name of the selected monitor
 const char *GetMonitorName(int monitor)
 {
-    //TODO
-    return "";
+    // No monitor selection implemented.
+    if (monitor != 0)
+    {
+        TRACELOG(LOG_WARNING, "Monitor index other than 0 is not supported on target platform");
+    }
+    return GetMonitorDeviceName();
 }
 
 // Get window position XY on monitor
@@ -393,9 +399,9 @@ void EnableCursor(void)
 {
     // TODO
     // Set cursor position in the middle
-    //SetMousePosition(CORE.Window.screen.width/2, CORE.Window.screen.height/2);
+    SetMousePosition(CORE.Window.screen.width/2, CORE.Window.screen.height/2);
 
-    //CORE.Input.Mouse.cursorHidden = false;
+    CORE.Input.Mouse.cursorHidden = false;
 }
 
 // Disable cursor (lock cursor)
@@ -403,9 +409,9 @@ void DisableCursor(void)
 {
     // TODO
     // Set cursor position in the middle
-    //SetMousePosition(CORE.Window.screen.width/2, CORE.Window.screen.height/2);
+    SetMousePosition(CORE.Window.screen.width/2, CORE.Window.screen.height/2);
 
-    //CORE.Input.Mouse.cursorHidden = true;
+    CORE.Input.Mouse.cursorHidden = true;
 }
 
 // Swap back buffer with front buffer (screen drawing)
