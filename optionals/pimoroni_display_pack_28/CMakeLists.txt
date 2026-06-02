@@ -8,9 +8,13 @@ target_include_directories(pimoroni_display_pack_28 INTERFACE ${CMAKE_CURRENT_LI
 
 target_link_libraries(pimoroni_display_pack_28 INTERFACE
     pico_stdlib
+    pico_float
+    pico_double
+
     hardware_spi
     hardware_dma
+    hardware_gpio
+    hardware_pio
+    hardware_pwm
     hardware_clocks
-    hardware_timer
-    
 )

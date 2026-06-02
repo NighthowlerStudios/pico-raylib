@@ -4,7 +4,7 @@
 #include "pico_display.h"
 
 KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST] = { 0 };
-Orientation currentOrientation;
+Orientation currentOrientation = LANDSCAPE;
 
 void GetMinimumResolution(int* width, int* height)
 {
@@ -18,12 +18,26 @@ void GetMaximumResolution(int* width, int* height)
     *height = 240;
 }
 
-void InitInput()
+void InitInput(void)
 {
 
 }
 
-void PollInput()
+void PollInput(void)
 {
 
+}
+
+void InitDisplay(void)
+{
+
+}
+
+void FlipBuffer(uint16_t* buffer)
+{
+
+}
+
+void CleanupDisplay(void)
+{
 }

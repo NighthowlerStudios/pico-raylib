@@ -3,11 +3,12 @@
 
 #define NUM_BUTTONS_TO_TEST 4
 
+#include <stdint.h>
 #include "raylib.h"
 
 inline const char* GetMonitorDeviceName() { return "Some Device Name"; }
 
-typedef enum {
+typedef enum Orientation {
     PORTRAIT = 0,
     LANDSCAPE = 1,
     INVERTED_PORTRAIT = 2,
@@ -24,10 +25,15 @@ void GetMinimumResolution(int* width, int* height);
 // Overrides the maximum resolution with a capper, if needed.
 void GetMaximumResolution(int* width, int* height);
 
-void SetMonitorOrientation(Orientation orientation);
-Orientation GetMonitorOrientation();
-
 // Emulate keyboards in here.
-void PollInput();
+void PollInput(void);
 // Setup keyboard emulation via GPIO in here.
-void InitInput();
+void InitInput(void);
+
+// Initialise display drivers.
+void InitDisplay(void);
+// In R5G6B5 format, transmit the buffer.  Block raylib in here if we're waiting for Core 2 to finish.
+void FlipBuffer(uint16_t* buffer);
+
+// Clean up the display driver.
+void CleanupDisplay(void);

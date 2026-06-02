@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "raylib.h"
 
-typedef enum {
+typedef enum PicoDisplay28 {
     PICO_DISPLAY_WIDTH = 320,
     PICO_DISPLAY_HEIGHT = 240,
     PICO_DISPLAY_BUTTON_A = 12,
@@ -19,7 +19,7 @@ typedef enum {
 
 inline const char* GetMonitorDeviceName() { return "Pimoroni Pico Display Pack 2.8\""; }
 
-typedef enum {
+typedef enum Orientation {
     PORTRAIT = 0,
     LANDSCAPE = 1,
     INVERTED_PORTRAIT = 2,
@@ -37,7 +37,17 @@ void GetMinimumResolution(int* width, int* height);
 void GetMaximumResolution(int* width, int* height);
 
 // Emulate keyboards in here.
-void PollInput();
+void PollInput(void);
 // Setup keyboard emulation via GPIO in here.
-void InitInput();
+void InitInput(void);
 
+// Initialise display drivers.
+void InitDisplay(void);
+// In R5G6B5 format, transmit the buffer.  Block raylib in here if we're waiting for Core 2 to finish.
+void FlipBuffer(uint16_t* buffer);
+
+// Clean up the display driver.
+void CleanupDisplay(void);
+
+// Change the brightness of the LCD manually.  It's full by default, so maybe some power could be saved here.
+void SetBacklight(uint8_t brightness);

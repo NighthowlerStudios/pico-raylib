@@ -48,8 +48,7 @@
 #include "config.h"         // Must be first to set SW_FRAMEBUFFER_COLOR_TYPE before rlgl.h
 #include "raylib.h"
 #include "rlgl.h"
-
-#include "hardware/timer.h"
+#include <stddef.h>
 
 // All display devices are interfaced to this single header.  
 // Only one optional library is selected at a time in CMakeLists.txt
@@ -414,17 +413,29 @@ void DisableCursor(void)
     CORE.Input.Mouse.cursorHidden = true;
 }
 
+// Get it by force from rlsw.h at link time.
+extern void* swGetColorBuffer(int* width, int* height);
+
 // Swap back buffer with front buffer (screen drawing)
 void SwapScreenBuffer(void)
 {
-    // TODO
-    //eglSwapBuffers(platform.device, platform.surface);
+    int swWidth, swHeight;
+    uint16_t* swFramebuffer = (uint16_t*)swGetColorBuffer(&swWidth, &swHeight);
+    if (!swFramebuffer || swWidth != CORE.Window.screen.width || swHeight != CORE.Window.screen.height)
+    {
+        TRACELOG(LOG_ERROR, "SwapScreenBuffer() failed: software framebuffer not available or size mismatch");
+        return;
+    }
+
+    FlipBuffer(swFramebuffer);
 }
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition: Misc
 //----------------------------------------------------------------------------------
 
+// Pico 2 has a hardware timer, let's use it.
+#include "hardware/timer.h"
 
 // Get elapsed time measure in seconds since InitTimer()
 double GetTime(void)
@@ -541,38 +552,16 @@ void PollInputEvents(void)
 // Initialize platform: graphics, inputs and more
 int InitPlatform(void)
 {
-    // TODO: Initialize graphic device: display/window
-    // It usually requires setting up the platform display system configuration
-    // and connexion with the GPU through some system graphic API
-    // raylib uses OpenGL so, platform should create that kind of connection
-    //----------------------------------------------------------------------------
-
-    // TODO: Init display and graphic device
+    InitDisplay();
 
     // TODO: Check display, device and context activation
     //----------------------------------------------------------------------------
 
     // If everything worked as expected, continue
 
-    // TODO: Load OpenGL extensions
-    // NOTE: GL procedures address loader is required to load extensions
-    //----------------------------------------------------------------------------
-    //----------------------------------------------------------------------------
-
-    // TODO: Initialize input events system
-    // It could imply keyboard, mouse, gamepad, touch...
-    // Depending on the platform libraries/SDK it could use a callback mechanism
-    // For system events and inputs evens polling on a per-frame basis, use PollInputEvents()
-    //----------------------------------------------------------------------------
-    // ...
-    //----------------------------------------------------------------------------
-
     InitInput();
 
-    // TODO: Initialize timing system
-    //----------------------------------------------------------------------------
     InitTimer();
-    //----------------------------------------------------------------------------
 
     // TODO: Initialize storage system
     //----------------------------------------------------------------------------

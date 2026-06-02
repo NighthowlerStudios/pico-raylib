@@ -158,16 +158,10 @@ set(pico_libraries
     # Replace default allocators with PSRAM ones.
     sparkfun_pico
 
-    hardware_clocks
-    hardware_spi
-    hardware_pwm
-    hardware_pio
     hardware_dma
     hardware_interp
     hardware_timer
-
-    # I/O
-    button
+    hardware_spi
 )
 
 # Unfortunately we can't use most third party's drivers as they're usually implemented with pico_graphics.
