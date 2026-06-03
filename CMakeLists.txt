@@ -107,6 +107,7 @@ set(raylib_defs
     SW_COLOR_BUFFER_BITS=16
     SW_DEPTH_BUFFER_BITS=16
     SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
+    SFE_RP2350_XIP_CSI_PIN=PIMORONI_PICO_PLUS2_PSRAM_CS_PIN
 )
 
 # We rip apart the raylib sources to stub some of the defines for now.
