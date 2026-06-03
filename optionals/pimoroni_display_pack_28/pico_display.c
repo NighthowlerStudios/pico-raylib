@@ -148,21 +148,21 @@ static const uint8_t SPI_BG_FRONT_CS = 17;
 static const uint8_t SPI_BG_BACK_PWM = 21;
 static const uint8_t SPI_BG_BACK_CS = 22;
   
-bool round;
+static bool round;
 
 // interface pins with our standard defaults where appropriate
-spi_inst_t *spi;
-uint8_t cs = SPI_BG_FRONT_CS;
-uint8_t sck = SPI_DEFAULT_SCK;
-uint8_t mosi = SPI_DEFAULT_MOSI;
-uint8_t miso = SPI_DEFAULT_MISO;
-uint8_t dc = SPI_DEFAULT_DC;
-uint8_t bl = SPI_BG_FRONT_PWM;
-uint8_t vsync  = PIN_UNUSED; // only available on some products
-uint8_t parallel_sm;
-PIO parallel_pio;
-uint8_t parallel_offset;
-uint8_t st_dma;
+static spi_inst_t *spi;
+static const uint8_t cs = SPI_BG_FRONT_CS;
+static const uint8_t sck = SPI_DEFAULT_SCK;
+static const uint8_t mosi = SPI_DEFAULT_MOSI;
+static const uint8_t miso = SPI_DEFAULT_MISO;
+static const uint8_t dc = SPI_DEFAULT_DC;
+static const uint8_t bl = SPI_BG_FRONT_PWM;
+static const uint8_t vsync  = PIN_UNUSED; // only available on some products
+static uint8_t parallel_sm;
+static PIO parallel_pio;
+static uint8_t parallel_offset;
+static uint8_t st_dma;
 
 // The ST7789 requires 16 ns between SPI rising edges.
 // 16 ns = 62,500,000 Hz
@@ -192,7 +192,12 @@ void SetBacklight(uint8_t brightness) {
     float gamma = 2.8;
     uint16_t value = (uint16_t)(pow((float)(brightness) / 255.0f, gamma) * 65535.0f + 0.5f);
     pwm_set_gpio_level(bl, value);
-  }
+}
+
+#include "pico/mutex.h"
+#include "pico/multicore.h"
+
+static mutex_t frameBufferMutex;
 
 // And now expose this functionality to Raylib.
 void InitDisplay(void)
@@ -221,11 +226,11 @@ void InitDisplay(void)
     // if a backlight pin is provided then set it up for
     // pwm control
     if(bl != PIN_UNUSED) {
-      pwm_config cfg = pwm_get_default_config();
-      pwm_set_wrap(pwm_gpio_to_slice_num(bl), 65535);
-      pwm_init(pwm_gpio_to_slice_num(bl), &cfg, true);
-      gpio_set_function(bl, GPIO_FUNC_PWM);
-      set_backlight(0); // Turn backlight off initially to avoid nasty surprises
+        pwm_config cfg = pwm_get_default_config();
+        pwm_set_wrap(pwm_gpio_to_slice_num(bl), 65535);
+        pwm_init(pwm_gpio_to_slice_num(bl), &cfg, true);
+        gpio_set_function(bl, GPIO_FUNC_PWM);
+        SetBacklight(0); // Turn backlight off initially to avoid nasty surprises
     }
 
     // Common init.
@@ -300,15 +305,59 @@ void InitDisplay(void)
         sleep_ms(50); // Wait for the update to apply
         SetBacklight(255); // Turn backlight on now surprises have passed
     }
+
+    // Create the mutex and initialize Core 2.
+    mutex_init(&frameBufferMutex);
+    multicore_reset_core1();
+    multicore_launch_core1(Core1FlipBuffer);
+
+    // Force a wait just in case
+    // Check derived from https://github.com/ronter-7786/pico_e-paper/blob/main/examples/pico_bike/pico_bike.c
+    while (multicore_fifo_pop_blocking() != 0xa55a);
 }
 
-void FlipBuffer(uint16_t* buffer)
-{
+// We use lazy scheduling in here because the framebuffer is read-only on core 2 anyway.
 
+uint16_t* currentBuffer = NULL;
+// Using this as a flag to indicate whether the Raylib buffer has been swapped.
+bool flipCompleted = false;
+int currentWidth = 320;
+int currentHeight = 240;
+
+void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
+{
+    // Raylib is not allowed to continue until core 2 is done drawing the current buffer.
+    while (frameBufferMutex.owner != LOCK_INVALID_OWNER_ID);
+    
+    currentBuffer = buffer;
+    currentWidth = screenWidth;
+    currentHeight = screenHeight;
+    // On start, this will force Core 1 to wait until first flip, prevents null pointer.
+    flipCompleted = true;
+}
+
+void Core1FlipBuffer(void)
+{
+    while(true)
+    {
+        while (!flipCompleted);
+
+        mutex_enter_blocking(&frameBufferMutex);
+
+        // Acknowledge.
+        flipCompleted = false;
+
+        // Command handles the parsing of the data.  We can't block it nicely, so we use that boolean.
+        command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
+
+        mutex_exit(&frameBufferMutex);
+    }
 }
 
 void CleanupDisplay(void)
 {
+    // Don't unallocate dma's until the current frame is done drawing.
+    while (frameBufferMutex.owner != LOCK_INVALID_OWNER_ID);
     if(dma_channel_is_claimed(st_dma)) {
         dma_channel_abort(st_dma);
         dma_channel_unclaim(st_dma);

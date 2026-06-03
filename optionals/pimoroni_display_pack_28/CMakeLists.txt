@@ -10,6 +10,8 @@ target_link_libraries(pimoroni_display_pack_28 INTERFACE
     pico_stdlib
     pico_float
     pico_double
+    pico_unique_id
+    pico_multicore
 
     hardware_spi
     hardware_dma

@@ -427,7 +427,7 @@ void SwapScreenBuffer(void)
         return;
     }
 
-    FlipBuffer(swFramebuffer);
+    FlipBuffer(swFramebuffer, CORE.Window.screen.width, CORE.Window.screen.height);
 }
 
 //----------------------------------------------------------------------------------

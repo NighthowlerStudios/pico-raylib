@@ -33,7 +33,7 @@ void InitInput(void);
 // Initialise display drivers.
 void InitDisplay(void);
 // In R5G6B5 format, transmit the buffer.  Block raylib in here if we're waiting for Core 2 to finish.
-void FlipBuffer(uint16_t* buffer);
+void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight);
 
 // Clean up the display driver.
 void CleanupDisplay(void);

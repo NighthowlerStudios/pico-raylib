@@ -33,7 +33,7 @@ void InitDisplay(void)
 
 }
 
-void FlipBuffer(uint16_t* buffer)
+void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
 
 }
