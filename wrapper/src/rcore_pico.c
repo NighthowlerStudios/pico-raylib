@@ -50,6 +50,9 @@
 #include "raymath.h"
 #include "rlgl.h"
 #include <stddef.h>
+#include <stdio.h>
+#include <stdint.h>
+#include "pico/stdlib.h"
 
 // All display devices are interfaced to this single header.  
 // Only one optional library is selected at a time in CMakeLists.txt
@@ -526,7 +529,8 @@ extern void* swGetColorBuffer(int* width, int* height);
 // Swap back buffer with front buffer (screen drawing)
 void SwapScreenBuffer(void)
 {
-    int swWidth, swHeight;
+    int swWidth;
+    int swHeight;
     uint16_t* swFramebuffer = (uint16_t*)swGetColorBuffer(&swWidth, &swHeight);
     if (!swFramebuffer || swWidth != CORE.Window.screen.width || swHeight != CORE.Window.screen.height)
     {
@@ -676,6 +680,8 @@ int InitPlatform(void)
     //CORE.Storage.basePath = GetWorkingDirectory();
     //----------------------------------------------------------------------------
 
+    CORE.Window.ready = true;
+
     TRACELOG(LOG_INFO, "PLATFORM: RP2350: Initialized successfully");
 
     return 0;
@@ -684,7 +690,7 @@ int InitPlatform(void)
 // Close platform
 void ClosePlatform(void)
 {
-    // TODO: De-initialize graphics, inputs and more
+    CleanupDisplay();
 }
 
 // EOF

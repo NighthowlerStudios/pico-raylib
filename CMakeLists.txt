@@ -32,6 +32,7 @@ endif()
 
 option(BUILD_RAYLIB_EXAMPLES "Build the examples folder inside of the Raylib submodule using this version of the library." OFF)
 option(BUILD_EXAMPLE "Build the main example that demonstrates everything possible." ON)
+option(USE_USB_CONSOLE_OUT "Wait until the USB is connected before going forward with InitWindow()" ON)
 
 enum_option(RAYLIB_DISPLAY 
     "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout" 
@@ -135,6 +136,12 @@ if (SD_CARD)
     )
 endif()
 
+if (USE_USB_CONSOLE_OUT)
+    list(APPEND raylib_defs
+        USE_USB_CONSOLE_OUT
+    )
+endif()
+
 # Note, this is the recommended way to compile the SDK.
 # However due to the sheer size, maybe we can consider compiling the library once as shared in the future.  
 add_library(pico_raylib INTERFACE)
@@ -153,12 +160,14 @@ target_include_directories(pico_raylib INTERFACE
 )
 
 pico_enable_stdio_usb(pico_raylib 1)
+pico_enable_stdio_uart(pico_raylib 0)
 
 set(pico_libraries
     pico_stdlib
     # Hardware accelerate float and double.
     pico_float
     pico_double
+    pico_stdio_usb
 
     # Replace default allocators with PSRAM ones.
     sparkfun_pico

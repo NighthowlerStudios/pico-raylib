@@ -6,11 +6,23 @@
 #include "hardware/pio.h"
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
+#include "pico/stdlib.h"
+#include <stdio.h>
 
 KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST] = { 0 };
 Orientation currentOrientation = LANDSCAPE;
 
-inline int GetHardwareResolutionWidth()
+static const int PICO_DISPLAY_WIDTH = 320;
+static const int PICO_DISPLAY_HEIGHT = 240;
+static const uint8_t PICO_DISPLAY_BUTTON_A = 12;
+static const uint8_t PICO_DISPLAY_BUTTON_B = 13;
+static const uint8_t PICO_DISPLAY_BUTTON_X = 14;
+static const uint8_t PICO_DISPLAY_BUTTON_Y = 15;
+static const uint8_t PICO_DISPLAY_LED_R = 26;
+static const uint8_t PICO_DISPLAY_LED_G = 27;
+static const uint8_t PICO_DISPLAY_LED_B = 28;
+
+int GetHardwareResolutionWidth()
 {
     if (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT)
     {
@@ -22,7 +34,7 @@ inline int GetHardwareResolutionWidth()
     }
 }
 
-inline int GetHardwareResolutionHeight()
+int GetHardwareResolutionHeight()
 {
     if (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT)
     {
@@ -89,24 +101,24 @@ void PollInput(void)
 // Here's where we dissolved the st7789 driver into.
 // Please note that most of this is copy-pasted from Pimoroni-Pico.
 // Then it was translated over to C, because C++ had some libraries that are incompatible with C99.
-uint8_t madctl;
+uint8_t maSPI_DEFAULT_DCtl;
 uint16_t caset[2] = {0, 0};
 uint16_t raset[2] = {0, 0};
 
-typedef enum MADCTL {
+typedef enum MASPI_DEFAULT_DCTL {
     ROW_ORDER   = 0b10000000,
     COL_ORDER   = 0b01000000,
     SWAP_XY     = 0b00100000,  // AKA "MV"
     SCAN_ORDER  = 0b00010000,
     RGB_BGR     = 0b00001000,
     HORIZ_ORDER = 0b00000100
-} __attribute__ ((__packed__)) MADCTL;
+} __attribute__ ((__packed__)) MASPI_DEFAULT_DCTL;
 
 typedef enum reg {
     SWRESET   = 0x01,
     TEOFF     = 0x34,
     TEON      = 0x35,
-    MADCTLREG = 0x36,
+    MASPI_DEFAULT_DCTLREG = 0x36,
     COLMOD    = 0x3A,
     RAMCTRL   = 0xB0,
     GCTRL     = 0xB7,
@@ -121,6 +133,7 @@ typedef enum reg {
     GMCTRP1   = 0xE0,
     GMCTRN1   = 0xE1,
     INVOFF    = 0x20,
+    SLPIN     = 0x10,
     SLPOUT    = 0x11,
     DISPON    = 0x29,
     GAMSET    = 0x26,
@@ -138,25 +151,14 @@ typedef enum reg {
 static const uint8_t PIN_UNUSED = CHAR_MAX; // Intentionally INT_MAX to avoid overflowing MicroPython's int type
 
 static const uint8_t SPI_DEFAULT_MOSI = 19;
-static const uint8_t SPI_DEFAULT_MISO = 16;
 static const uint8_t SPI_DEFAULT_DC = 16;
 static const uint8_t SPI_DEFAULT_SCK = 18;
 
 static const uint8_t SPI_BG_FRONT_PWM = 20;
 static const uint8_t SPI_BG_FRONT_CS = 17;
 
-static const uint8_t SPI_BG_BACK_PWM = 21;
-static const uint8_t SPI_BG_BACK_CS = 22;
-
 // interface pins with our standard defaults where appropriate
-static spi_inst_t *spi;
-static const uint8_t cs = SPI_BG_FRONT_CS;
-static const uint8_t sck = SPI_DEFAULT_SCK;
-static const uint8_t mosi = SPI_DEFAULT_MOSI;
-static const uint8_t miso = SPI_DEFAULT_MISO;
-static const uint8_t dc = SPI_DEFAULT_DC;
-static const uint8_t bl = SPI_BG_FRONT_PWM;
-static const uint8_t vsync  = PIN_UNUSED; // only available on some products
+static spi_inst_t *spi = spi0;
 static uint8_t parallel_sm;
 static PIO parallel_pio;
 static uint8_t parallel_offset;
@@ -168,21 +170,24 @@ static uint8_t st_dma;
 static const uint32_t SPI_BAUD = 75000000;
 
 void command(uint8_t commandChar, int len, const char* data) {
-    gpio_put(dc, 0); // command mode
+    gpio_put(SPI_DEFAULT_DC, 0); // command mode
 
-    gpio_put(cs, 0);
+    gpio_put(SPI_BG_FRONT_CS, 0);
     
     spi_write_blocking(spi, &commandChar, 1);
 
     if (data) {
-        gpio_put(dc, 1); // data mode
+        gpio_put(SPI_DEFAULT_DC, 1); // data mode
         spi_write_blocking(spi, (const uint8_t*)data, len);
     }
 
-    gpio_put(cs, 1);
+    gpio_put(SPI_BG_FRONT_CS, 1);
 }
 
-inline void commandNoString(uint8_t commandChar) { command(commandChar, 0, ""); }
+void commandNoString(uint8_t commandChar) 
+{ 
+    command(commandChar, 0, NULL); 
+}
 
 #include <math.h>
 
@@ -191,7 +196,7 @@ void SetBacklight(uint8_t brightness) {
     // 0-65535 range for the pwm counter
     float gamma = 2.8;
     uint16_t value = (uint16_t)(pow((float)(brightness) / 255.0f, gamma) * 65535.0f + 0.5f);
-    pwm_set_gpio_level(bl, value);
+    pwm_set_gpio_level(SPI_BG_FRONT_PWM, value);
 }
 
 // We use lazy scheduling in here because the framebuffer is read-only on core 2 anyway.
@@ -209,7 +214,9 @@ void Core1FlipBuffer(void)
 {
     while(true)
     {
+        SetRGBLED(0, 255, 255, 31);
         while (!flipCompleted);
+        SetRGBLED(255, 0, 255, 31);
 
         mutex_enter_blocking(&frameBufferMutex);
 
@@ -217,6 +224,7 @@ void Core1FlipBuffer(void)
         flipCompleted = false;
 
         // Command handles the parsing of the data.  We can't block it nicely, so we use that boolean.
+        //printf("Current Buffer Pointer: %p\n", (void*)currentBuffer);
         command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
 
         mutex_exit(&frameBufferMutex);
@@ -226,12 +234,32 @@ void Core1FlipBuffer(void)
 // And now expose this functionality to Raylib.
 void InitDisplay(void)
 {
+#ifdef USE_USB_CONSOLE_OUT
+    stdio_init_all();
+
+    InitRGBLED();
+
+    while (!stdio_usb_connected())
+    {
+        SetRGBLED(255, 255, 0, 31);
+        sleep_ms(250);
+        SetRGBLED(0, 0, 0, 0);
+        sleep_ms(250);
+    }
+#endif
+
+    SetRGBLED(255, 0, 0, 31);
+
+    printf("[DEVICE] Initializing SPI to the LCD...\n");
+
     // First construct the pin information.
     // configure spi interface and pins
     spi_init(spi, SPI_BAUD);
 
-    gpio_set_function(sck, GPIO_FUNC_SPI);
-    gpio_set_function(mosi, GPIO_FUNC_SPI);
+    gpio_set_function(SPI_DEFAULT_SCK, GPIO_FUNC_SPI);
+    gpio_set_function(SPI_DEFAULT_MOSI, GPIO_FUNC_SPI);
+
+    printf("[DEVICE] Claiming DMA Channel for LCD SPI.\n");
 
     st_dma = dma_claim_unused_channel(true);
     dma_channel_config config = dma_channel_get_default_config(st_dma);
@@ -240,50 +268,58 @@ void InitDisplay(void)
     channel_config_set_dreq(&config, spi_get_dreq(spi, true));
     dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
 
-    // Then the full init
-    gpio_set_function(dc, GPIO_FUNC_SIO);
-    gpio_set_dir(dc, GPIO_OUT);
+    gpio_set_function(SPI_DEFAULT_DC, GPIO_FUNC_SIO);
+    gpio_set_dir(SPI_DEFAULT_DC, GPIO_OUT);
 
-    gpio_set_function(cs, GPIO_FUNC_SIO);
-    gpio_set_dir(cs, GPIO_OUT);
+    gpio_set_function(SPI_BG_FRONT_CS, GPIO_FUNC_SIO);
+    gpio_set_dir(SPI_BG_FRONT_CS, GPIO_OUT);
+
+    printf("[DEVICE] Backlight off (PWM init)...\n");
 
     // if a backlight pin is provided then set it up for
     // pwm control
-    if(bl != PIN_UNUSED) {
+    if(SPI_BG_FRONT_PWM != PIN_UNUSED) {
         pwm_config cfg = pwm_get_default_config();
-        pwm_set_wrap(pwm_gpio_to_slice_num(bl), 65535);
-        pwm_init(pwm_gpio_to_slice_num(bl), &cfg, true);
-        gpio_set_function(bl, GPIO_FUNC_PWM);
+        pwm_set_wrap(pwm_gpio_to_slice_num(SPI_BG_FRONT_PWM), 65535);
+        pwm_init(pwm_gpio_to_slice_num(SPI_BG_FRONT_PWM), &cfg, true);
+        gpio_set_function(SPI_BG_FRONT_PWM, GPIO_FUNC_PWM);
         SetBacklight(0); // Turn backlight off initially to avoid nasty surprises
     }
 
-    // Common init.
-    commandNoString(SWRESET);
+    // Then the full init
 
-    sleep_ms(150);
+    // Common init.
+    printf("[DEVICE] Boot the ST7789\n");
+
+    commandNoString(SWRESET);
 
     commandNoString(TEON);  // enable frame sync signal if used
     command(COLMOD,    1, "\x05");  // 16 bits per pixel
 
-    command(PORCTRL, 5, "\x0c\x0c\x00\x33\x33");
+    const char porctrl_bytes[] = {0x0c, 0x0c, 0x00, 0x33, 0x33};
+    command(PORCTRL, 5, &porctrl_bytes);
     command(LCMCTRL, 1, "\x2c");
     command(VDVVRHEN, 1, "\x01");
     command(VRHS, 1, "\x12");
     command(VDVS, 1, "\x20");
-    command(PWCTRL1, 2, "\xa4\xa1");
+    const char pwctrl_bytes[] = {0xa4, 0xa1};
+    command(PWCTRL1, 2, &pwctrl_bytes);
     command(FRCTRL2, 1, "\x0f");
 
     // As noted in https://github.com/pimoroni/pimoroni-pico/issues/1040
     // this is required to avoid a weird light grey banding issue with low brightness green.
     // The banding is not visible without tweaking gamma settings (GMCTRP1 & GMCTRN1) but
     // it makes sense to fix it anyway.
-    command(RAMCTRL, 2, "\x00\xc0");
+    const char ramctrl_bytes[] = { 0x00, 0xc0 };
+    command(RAMCTRL, 2, &ramctrl_bytes);
 
     // Pico Display 2.8 specific.
     command(GCTRL, 1, "\x35");
     command(VCOMS, 1, "\x1f");
-    command(GMCTRP1, 14, "\xD0\x08\x11\x08\x0C\x15\x39\x33\x50\x36\x13\x14\x29\x2D");
-    command(GMCTRN1, 14, "\xD0\x08\x10\x08\x06\x06\x39\x44\x51\x0B\x16\x14\x2F\x31");
+    const char gmctrp1_bytes[] = {0xd0, 0x08, 0x11, 0x08, 0x0C, 0x15, 0x39, 0x33, 0x50, 0x36, 0x13, 0x14, 0x29, 0x2d };
+    const char gmctrn1_bytes[] = {0xd0, 0x08, 0x10, 0x08, 0x06, 0x06, 0x39, 0x44, 0x51, 0x0b, 0x16, 0x14, 0x2f, 0x31 };
+    command(GMCTRP1, 14, &gmctrp1_bytes);
+    command(GMCTRN1, 14, &gmctrn1_bytes);
 
     commandNoString(INVON);   // set inversion mode
     commandNoString(SLPOUT);  // leave sleep mode
@@ -301,8 +337,8 @@ void InitDisplay(void)
         caset[1] = 319;
         raset[0] = 0;
         raset[1] = 239;
-        madctl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? ROW_ORDER : COL_ORDER;
-        madctl |= SWAP_XY | SCAN_ORDER;
+        maSPI_DEFAULT_DCtl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? ROW_ORDER : COL_ORDER;
+        maSPI_DEFAULT_DCtl |= SWAP_XY | SCAN_ORDER;
     }
 
     // Pico Display 2.0 at 90 degree rotation
@@ -311,7 +347,7 @@ void InitDisplay(void)
         caset[1] = 239;
         raset[0] = 0;
         raset[1] = 319;
-        madctl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? (COL_ORDER | ROW_ORDER) : 0;
+        maSPI_DEFAULT_DCtl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? (COL_ORDER | ROW_ORDER) : 0;
     }
 
     // Byte swap the 16bit rows/cols values
@@ -322,22 +358,26 @@ void InitDisplay(void)
 
     command(CASET,  4, (char *)caset);
     command(RASET,  4, (char *)raset);
-    command(MADCTLREG, 1, (char *)&madctl);
+    command(MASPI_DEFAULT_DCTLREG, 1, (char *)&maSPI_DEFAULT_DCtl);
 
-    if(bl != PIN_UNUSED) {
+    printf("[DEVICE] ST7789 is ready for use.\n");
+
+    if(SPI_BG_FRONT_PWM != PIN_UNUSED) {
         //update(); // Send the new buffer to the display to clear any previous content
         sleep_ms(50); // Wait for the update to apply
         SetBacklight(255); // Turn backlight on now surprises have passed
     }
 
+    printf("[DEVICE] Setting up renderer core on Core 2 (1)...\n");
+    
     // Create the mutex and initialize Core 2.
     mutex_init(&frameBufferMutex);
     multicore_reset_core1();
     multicore_launch_core1(Core1FlipBuffer);
 
-    // Force a wait just in case
-    // Check derived from https://github.com/ronter-7786/pico_e-paper/blob/main/examples/pico_bike/pico_bike.c
-    while (multicore_fifo_pop_blocking() != 0xa55a);
+    SetRGBLED(0, 255, 0, 31);
+
+    printf("[DEVICE] Device ready.\n");
 }
 
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
@@ -360,4 +400,40 @@ void CleanupDisplay(void)
         dma_channel_abort(st_dma);
         dma_channel_unclaim(st_dma);
     }
+
+    // Conserve power.
+    SetRGBLED(0, 0, 0, 0);
+    SetBacklight(0);
+    commandNoString(DISPOFF);
+    commandNoString(SLPIN);
+}
+
+// Now some exposure for the RGB LED.
+pwm_config pwm_cfg;
+
+void SetRGBLED(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness)
+{
+    uint16_t r16 = UINT16_MAX - (brightness * r);
+    uint16_t g16 = UINT16_MAX - (brightness * g);
+    uint16_t b16 = UINT16_MAX - (brightness * b);
+    pwm_set_gpio_level(PICO_DISPLAY_LED_R, r16);
+    pwm_set_gpio_level(PICO_DISPLAY_LED_G, g16);
+    pwm_set_gpio_level(PICO_DISPLAY_LED_B, b16);
+}
+
+void InitRGBLED(void)
+{
+    pwm_cfg = pwm_get_default_config();
+    pwm_config_set_wrap(&pwm_cfg, UINT16_MAX);
+
+    pwm_init(pwm_gpio_to_slice_num(PICO_DISPLAY_LED_R), &pwm_cfg, true);
+    gpio_set_function(PICO_DISPLAY_LED_R, GPIO_FUNC_PWM);
+
+    pwm_init(pwm_gpio_to_slice_num(PICO_DISPLAY_LED_G), &pwm_cfg, true);
+    gpio_set_function(PICO_DISPLAY_LED_G, GPIO_FUNC_PWM);
+
+    pwm_init(pwm_gpio_to_slice_num(PICO_DISPLAY_LED_B), &pwm_cfg, true);
+    gpio_set_function(PICO_DISPLAY_LED_B, GPIO_FUNC_PWM);
+
+    SetRGBLED(0, 0, 0, 0);
 }
