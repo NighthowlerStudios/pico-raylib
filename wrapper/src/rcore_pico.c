@@ -47,6 +47,7 @@
 **********************************************************************************************/
 #include "config.h"         // Must be first to set SW_FRAMEBUFFER_COLOR_TYPE before rlgl.h
 #include "raylib.h"
+#include "raymath.h"
 #include "rlgl.h"
 #include <stddef.h>
 
@@ -62,10 +63,116 @@ typedef struct {
 
 } PlatformData;
 
+#define MAX_TRACELOG_MSG_LENGTH      256        // Max length of one trace-log message
+#define MAX_GAMEPAD_NAME_LENGTH      128        // Maximum number of characters in a gamepad name (byte size)
+
+#define MAX_AUTOMATION_EVENTS      16384        // Maximum number of automation events to record
+
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
 // Found in rcore.c
+typedef struct { int x; int y; } Point;
+typedef struct { unsigned int width; unsigned int height; } Size;
+
+typedef struct CoreData {
+    struct {
+        const char *title;                  // Window text title const pointer
+        unsigned int flags;                 // Configuration flags (bit based), keeps window state
+        bool ready;                         // Check if window has been initialized successfully
+        bool shouldClose;                   // Check if window set for closing
+        bool resizedLastFrame;              // Check if window has been resized last frame
+        bool eventWaiting;                  // Wait for events before ending frame
+        bool usingFbo;                      // Using FBO (RenderTexture) for rendering instead of default framebuffer
+
+        Size display;                       // Display width and height (monitor, device-screen, LCD, ...)
+        Size screen;                        // Screen current width and height
+        Point position;                     // Window current position
+        Size previousScreen;                // Screen previous width and height (required on fullscreen/borderless-windowed toggle)
+        Point previousPosition;             // Window previous position (required on fullscreen/borderless-windowed toggle)
+        Size render;                        // Screen framebuffer width and height
+        Point renderOffset;                 // Screen framebuffer render offset (Not required anymore?)
+        Size currentFbo;                    // Current framebuffer render width and height (depends on active render texture)
+        Size screenMin;                     // Screen minimum width and height (for resizable window)
+        Size screenMax;                     // Screen maximum width and height (for resizable window)
+        Matrix screenScale;                 // Matrix to scale screen (framebuffer rendering)
+
+        char **dropFilepaths;               // Store dropped files paths pointers (provided by GLFW)
+        unsigned int dropFileCount;         // Count dropped files strings
+
+    } Window;
+    struct {
+        const char *basePath;               // Base path for data storage
+
+    } Storage;
+    struct {
+        struct {
+            int exitKey;                    // Default exit key
+            char currentKeyState[MAX_KEYBOARD_KEYS]; // Registers current frame key state
+            char previousKeyState[MAX_KEYBOARD_KEYS]; // Registers previous frame key state
+
+            // NOTE: Since key press logic involves comparing previous vs current key state,
+            // key repeats needs to be handled specially
+            char keyRepeatInFrame[MAX_KEYBOARD_KEYS]; // Registers key repeats for current frame
+
+            int keyPressedQueue[MAX_KEY_PRESSED_QUEUE]; // Input keys queue
+            int keyPressedQueueCount;       // Input keys queue count
+
+            int charPressedQueue[MAX_CHAR_PRESSED_QUEUE]; // Input characters queue (unicode)
+            int charPressedQueueCount;      // Input characters queue count
+
+        } Keyboard;
+        struct {
+            Vector2 offset;                 // Mouse offset
+            Vector2 scale;                  // Mouse scaling
+            Vector2 currentPosition;        // Mouse position on screen
+            Vector2 previousPosition;       // Previous mouse position
+            Vector2 lockedPosition;         // Mouse position when locked
+
+            int cursor;                     // Tracks current mouse cursor
+            bool cursorHidden;              // Track if cursor is hidden
+            bool cursorLocked;              // Track if cursor is locked (disabled)
+            bool cursorOnScreen;            // Tracks if cursor is inside client area
+
+            char currentButtonState[MAX_MOUSE_BUTTONS]; // Registers current mouse button state
+            char previousButtonState[MAX_MOUSE_BUTTONS]; // Registers previous mouse button state
+            Vector2 currentWheelMove;       // Registers current mouse wheel variation
+            Vector2 previousWheelMove;      // Registers previous mouse wheel variation
+
+        } Mouse;
+        struct {
+            int pointCount;                                 // Number of touch points active
+            int pointId[MAX_TOUCH_POINTS];                  // Point identifiers
+            Vector2 position[MAX_TOUCH_POINTS];             // Touch position on screen
+            Vector2 previousPosition[MAX_TOUCH_POINTS];     // Previous touch position on screen
+            char currentTouchState[MAX_TOUCH_POINTS];       // Registers current touch state
+            char previousTouchState[MAX_TOUCH_POINTS];      // Registers previous touch state
+
+        } Touch;
+        struct {
+            int lastButtonPressed;          // Register last gamepad button pressed
+            int axisCount[MAX_GAMEPADS];    // Register number of available gamepad axes
+            bool ready[MAX_GAMEPADS];       // Flag to know if gamepad is ready
+            char name[MAX_GAMEPADS][MAX_GAMEPAD_NAME_LENGTH];               // Gamepad name holder
+            char currentButtonState[MAX_GAMEPADS][MAX_GAMEPAD_BUTTONS];     // Current gamepad buttons state
+            char previousButtonState[MAX_GAMEPADS][MAX_GAMEPAD_BUTTONS];    // Previous gamepad buttons state
+            float axisState[MAX_GAMEPADS][MAX_GAMEPAD_AXES];                // Gamepad axes state
+
+        } Gamepad;
+    } Input;
+    struct {
+        double current;                     // Current time measure (seconds)
+        double previous;                    // Previous time measure (seconds)
+        double update;                      // Time measure for frame update (seconds)
+        double draw;                        // Time measure for frame draw (seconds)
+        double frame;                       // Time measure for one frame (seconds)
+        double target;                      // Desired time for one frame, if 0 not applied (seconds)
+        unsigned long long base;            // Base time measure for hi-res timer (ticks or nanoseconds)
+        unsigned int frameCounter;          // Frame counter (frames)
+
+    } Time;
+} CoreData;
+
 extern CoreData CORE;    // Global CORE state data
 
 static PlatformData platform = { 0 };   // Platform specific data
@@ -251,9 +358,9 @@ void SetWindowSize(int width, int height)
         TRACELOG(LOG_WARNING, "SetWindowSize() was clamped back to (", newWidth, ",", newHeight, ")");
     }
 
-    SetupViewport(newWidth, newHeight);
+    // TODO: actually reallocate all three buffers (depth, color, back color) to the new size.  This needs to be done inside of rlsw so the actual pixel arrays get modified.
+    //SetupViewport(newWidth, newHeight);
 
-    // TODO: actually reallocate all three buffers (depth, color, back color) to the new size.  This needs to be done inside of rlsw.
 }
 
 // Set window opacity, value opacity is between 0.0 and 1.0
@@ -541,7 +648,7 @@ void PollInputEvents(void)
 
     if (CORE.Input.Keyboard.currentKeyState[CORE.Input.Keyboard.exitKey]) 
     {
-        CORE.window.ShouldClose = true;
+        CORE.Window.shouldClose = true;
     }
 }
 
@@ -561,7 +668,8 @@ int InitPlatform(void)
 
     InitInput();
 
-    InitTimer();
+    // Manually InitTimer();
+    CORE.Time.previous = GetTime(); // Get time as double
 
     // TODO: Initialize storage system
     //----------------------------------------------------------------------------

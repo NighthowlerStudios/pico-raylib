@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.25)
 
 set(CMAKE_C_STANDARD 11)
 # We're forced to define these by the Pico SDK.
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#set(CMAKE_CXX_STANDARD 17)
+#set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Git REQUIRED)
 
@@ -29,6 +29,9 @@ if (NOT DEFINED PICO_PLATFORM)
 elseif (PICO_PLATFORM STREQUAL "rp2040")
     message(FATAL_ERROR "The rp2040 is not supported by this library.  \nUndefine PICO_PLATFORM or delete CMake cache.")
 endif()
+
+option(BUILD_RAYLIB_EXAMPLES "Build the examples folder inside of the Raylib submodule using this version of the library." OFF)
+option(BUILD_EXAMPLE "Build the main example that demonstrates everything possible." ON)
 
 enum_option(RAYLIB_DISPLAY 
     "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout" 
@@ -85,7 +88,7 @@ cmake_policy(SET CMP0054 NEW)
 
 project(pico_raylib 
     VERSION 1.0.0 
-    LANGUAGES C CXX ASM
+    LANGUAGES C ASM
 )
 
 # Automatically use PSRAM thanks to the Pico SDK's wrap functionality.
@@ -132,6 +135,8 @@ if (SD_CARD)
     )
 endif()
 
+# Note, this is the recommended way to compile the SDK.
+# However due to the sheer size, maybe we can consider compiling the library once as shared in the future.  
 add_library(pico_raylib INTERFACE)
 
 target_sources(pico_raylib INTERFACE
@@ -196,8 +201,101 @@ target_compile_options(pico_raylib INTERFACE
     -Wno-uninitialized
     -Wno-nonnull
     -Wno-return-type
-    #-Wno-unused-variable
-    #-Wno-unused-function
-    #-Wno-unused-label                           # Software renderer (rlsw.h) has unused labels on previous commits
+    -Wno-unused-variable
+    -Wno-unused-function
+    -Wno-unused-label                           # Software renderer (rlsw.h) has unused labels on previous commits
     -Wno-stringop-truncation                     # Raylib rtext.c TextReplaceBetween
 )
+
+if (BUILD_EXAMPLE)
+    project(example)
+    
+    add_executable(example "example/example.c")
+
+    target_link_libraries(example pico_raylib)
+
+    pico_add_extra_outputs(example)
+endif()
+
+if (BUILD_RAYLIB_EXAMPLES)
+    # Derived from Raylib's CMakeLists.txt in the examples folder.
+    # Setup the project and settings
+    project(examples)
+
+    # Directories that contain examples
+    set(example_dirs
+        "raylib/examples/core"
+        "raylib/examples/models"
+        "raylib/examples/others"
+        "raylib/examples/shapes"
+        "raylib/examples/text"
+        "raylib/examples/textures"
+    )
+
+    if (AUX_AUDIO)
+        list(APPEND example_dirs "raylib/examples/audio")
+    endif()
+
+    include(CheckIncludeFile)
+
+    # Collect all source files and resource files
+    # into a CMake variable
+    set(example_sources)
+    set(example_resources)
+    foreach (example_dir ${example_dirs})
+        # Get the .c files
+        file(GLOB sources ${example_dir}/*.c)
+        list(APPEND example_sources ${sources})
+
+        # Any any resources
+        file(GLOB resources ${example_dir}/resources/*)
+        list(APPEND example_resources ${resources})
+    endforeach ()
+
+    list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/core/core_loading_thread.c)
+    list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/others/raylib_opengl_interop.c)
+    list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/others/rlgl_standalone.c)
+
+    if (NOT SUPPORT_GESTURES_SYSTEM)
+        # Items requiring gestures system
+        list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/textures/textures_mouse_painting.c)
+        list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/core/core_basic_screen_manager.c)
+        list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/core/core_input_gestures_web.c)
+        list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/core/core_input_gestures.c)
+    endif ()
+
+    # The audio examples fail to link if raylib is built without raudio
+    if (NOT AUX_AUDIO)
+        list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/others/embedded_files_loading.c)
+        list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/textures/textures_sprite_button.c)
+        list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/textures/textures_sprite_explosion.c)
+    endif()
+
+    if (NOT SD_CARD)
+        # TODO
+    endif()
+
+    include_directories(BEFORE SYSTEM "raylib/examples/others/external/include")
+
+    # Do each example
+    foreach (example_source ${example_sources})
+        # Create the basename for the example
+        get_filename_component(example_name ${example_source} NAME)
+        string(REPLACE ".c" "" example_name ${example_name})
+
+        # Setup the example
+        add_executable(${example_name} ${example_source})
+
+        target_link_libraries(${example_name} pico_raylib)
+
+        # TODO: move these to an SD card instead
+        string(REGEX MATCH "raylib/examples/.*/.*/" resources_dir ${example_source})
+        string(APPEND resources_dir "raylib/examples/resources")
+
+        pico_add_extra_outputs(${example_name})
+    endforeach ()
+
+    # Copy all of the resource files to the destination
+    file(COPY ${example_resources} DESTINATION "raylib/examples/resources/")
+
+endif()

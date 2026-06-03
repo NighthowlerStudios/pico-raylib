@@ -29,7 +29,7 @@
 // Module: rcore - Configuration Flags
 //------------------------------------------------------------------------------------
 #define SUPPORT_CAMERA_SYSTEM           1
-#define SUPPORT_GESTURES_SYSTEM         1       // Touch gestures enabled
+#define SUPPORT_GESTURES_SYSTEM         0       // Touch gestures not supported on display
 #define SUPPORT_RPRAND_GENERATOR        1
 #define SUPPORT_MOUSE_GESTURES          0       // No mouse on embedded
 #define SUPPORT_SSH_KEYBOARD_RPI        0

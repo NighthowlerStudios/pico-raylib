@@ -63,7 +63,7 @@ PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST] = {
 };
 
 // Internal
-inline void SetupButton(const uint8_t buttonPin)
+void SetupButton(const uint8_t buttonPin)
 {
     gpio_init(buttonPin);
     gpio_set_dir(buttonPin, GPIO_IN);
@@ -106,7 +106,7 @@ typedef enum reg {
     SWRESET   = 0x01,
     TEOFF     = 0x34,
     TEON      = 0x35,
-    MADCTL    = 0x36,
+    MADCTLREG = 0x36,
     COLMOD    = 0x3A,
     RAMCTRL   = 0xB0,
     GCTRL     = 0xB7,
@@ -135,7 +135,7 @@ typedef enum reg {
 #include <limits.h>
 #include "hardware/spi.h"
 
-static const unsigned int PIN_UNUSED = INT_MAX; // Intentionally INT_MAX to avoid overflowing MicroPython's int type
+static const uint8_t PIN_UNUSED = CHAR_MAX; // Intentionally INT_MAX to avoid overflowing MicroPython's int type
 
 static const uint8_t SPI_DEFAULT_MOSI = 19;
 static const uint8_t SPI_DEFAULT_MISO = 16;
@@ -147,8 +147,6 @@ static const uint8_t SPI_BG_FRONT_CS = 17;
 
 static const uint8_t SPI_BG_BACK_PWM = 21;
 static const uint8_t SPI_BG_BACK_CS = 22;
-  
-static bool round;
 
 // interface pins with our standard defaults where appropriate
 static spi_inst_t *spi;
@@ -186,6 +184,8 @@ void command(uint8_t commandChar, int len, const char* data) {
 
 inline void commandNoString(uint8_t commandChar) { command(commandChar, 0, ""); }
 
+#include <math.h>
+
 void SetBacklight(uint8_t brightness) {
     // gamma correct the provided 0-255 brightness value onto a
     // 0-65535 range for the pwm counter
@@ -194,10 +194,34 @@ void SetBacklight(uint8_t brightness) {
     pwm_set_gpio_level(bl, value);
 }
 
+// We use lazy scheduling in here because the framebuffer is read-only on core 2 anyway.
 #include "pico/mutex.h"
 #include "pico/multicore.h"
 
 static mutex_t frameBufferMutex;
+uint16_t* currentBuffer = NULL;
+// Using this as a flag to indicate whether the Raylib buffer has been swapped.
+bool flipCompleted = false;
+int currentWidth = 320;
+int currentHeight = 240;
+
+void Core1FlipBuffer(void)
+{
+    while(true)
+    {
+        while (!flipCompleted);
+
+        mutex_enter_blocking(&frameBufferMutex);
+
+        // Acknowledge.
+        flipCompleted = false;
+
+        // Command handles the parsing of the data.  We can't block it nicely, so we use that boolean.
+        command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
+
+        mutex_exit(&frameBufferMutex);
+    }
+}
 
 // And now expose this functionality to Raylib.
 void InitDisplay(void)
@@ -298,7 +322,7 @@ void InitDisplay(void)
 
     command(CASET,  4, (char *)caset);
     command(RASET,  4, (char *)raset);
-    command(MADCTL, 1, (char *)&madctl);
+    command(MADCTLREG, 1, (char *)&madctl);
 
     if(bl != PIN_UNUSED) {
         //update(); // Send the new buffer to the display to clear any previous content
@@ -316,14 +340,6 @@ void InitDisplay(void)
     while (multicore_fifo_pop_blocking() != 0xa55a);
 }
 
-// We use lazy scheduling in here because the framebuffer is read-only on core 2 anyway.
-
-uint16_t* currentBuffer = NULL;
-// Using this as a flag to indicate whether the Raylib buffer has been swapped.
-bool flipCompleted = false;
-int currentWidth = 320;
-int currentHeight = 240;
-
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
     // Raylib is not allowed to continue until core 2 is done drawing the current buffer.
@@ -334,24 +350,6 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
     currentHeight = screenHeight;
     // On start, this will force Core 1 to wait until first flip, prevents null pointer.
     flipCompleted = true;
-}
-
-void Core1FlipBuffer(void)
-{
-    while(true)
-    {
-        while (!flipCompleted);
-
-        mutex_enter_blocking(&frameBufferMutex);
-
-        // Acknowledge.
-        flipCompleted = false;
-
-        // Command handles the parsing of the data.  We can't block it nicely, so we use that boolean.
-        command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
-
-        mutex_exit(&frameBufferMutex);
-    }
 }
 
 void CleanupDisplay(void)

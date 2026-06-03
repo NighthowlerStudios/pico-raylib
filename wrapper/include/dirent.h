@@ -11,6 +11,8 @@
 #ifndef DIRENT_H_PICO2_STUB
 #define DIRENT_H_PICO2_STUB
 
+#include <stddef.h>
+
 // Stub types
 typedef struct DIR DIR;
 struct dirent {
