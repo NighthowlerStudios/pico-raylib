@@ -35,7 +35,8 @@ endif()
 
 option(BUILD_RAYLIB_EXAMPLES "Build the examples folder inside of the Raylib submodule using this version of the library." OFF)
 option(BUILD_EXAMPLE "Build the main example that demonstrates everything possible." ON)
-option(USE_USB_CONSOLE_OUT "Wait until the USB is connected before going forward with InitWindow()" ON)
+option(USE_USB_CONSOLE_OUT "Wait until the USB is connected before going forward with InitWindow()" OFF)
+option(USE_RGB_LED_AS_DEBUG "Use the RGBLED to show what state the renderer is in." OFF)
 
 enum_option(RAYLIB_DISPLAY 
     "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout" 
@@ -130,13 +131,27 @@ set(raylib_defs
 # Utilize the enum found in pico_display.h
 # Note, if you copied a new one to optionals, that enum must be defined!  Otherwise we lose this convenience.
 if (DISPLAY_ORIENTATION STREQUAL "Landscape")
-    list(APPEND raylib_defs DISPLAY_ORIENTATION=0)
+    list(APPEND raylib_defs 
+        DISPLAY_ORIENTATION=0
+    )
 elseif (DISPLAY_ORIENTATION STREQUAL "Portrait")
-    list(APPEND raylib_defs DISPLAY_ORIENTATION=1)
+    list(APPEND raylib_defs 
+        DISPLAY_ORIENTATION=1
+    )
 elseif (DISPLAY_ORIENTATION STREQUAL "Inverted_Landscape")
-    list(APPEND raylib_defs DISPLAY_ORIENTATION=2)
+    list(APPEND raylib_defs 
+        DISPLAY_ORIENTATION=2
+    )
 elseif(DISPLAY_ORIENTATION STREQUAL "Inverted_Portrait")
-    list(APPEND raylib_defs DISPLAY_ORIENTATION=3)
+    list(APPEND raylib_defs 
+        DISPLAY_ORIENTATION=3
+    )
+endif()
+
+if (USE_RGB_LED_AS_DEBUG)
+    list(APPEND raylib_defs 
+        USE_RGB_LED_AS_DEBUG
+    )
 endif()
 
 # We rip apart the raylib sources to stub some of the defines for now.

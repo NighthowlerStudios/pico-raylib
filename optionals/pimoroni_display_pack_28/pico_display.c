@@ -201,12 +201,21 @@ void SetBacklight(uint8_t brightness) {
 }
 
 // Processing state colours on the LED to monitor what the CPU is doing even if Raylib has become unresponsive.
+#ifdef USE_RGB_LED_AS_DEBUG
 #define SHOW_LED_WAITING_FOR_USB SetRGBLED(255, 255, 0, 15)
 #define SHOW_LED_INITIALIZING_ST7789 SetRGBLED(255, 0, 0, 15)
 #define SHOW_LED_NO_FRAME_COMMANDED SetRGBLED(0, 255, 0, 15)
 #define SHOW_LED_RLSW_DRAWING SetRGBLED(0, 255, 255, 15)
 #define SHOW_LED_LCD_DRAWING SetRGBLED(255, 0, 255, 15)
 #define SHOW_NO_LED SetRGBLED(0, 0, 0, 0)
+#else
+#define SHOW_LED_WAITING_FOR_USB
+#define SHOW_LED_INITIALIZING_ST7789 
+#define SHOW_LED_NO_FRAME_COMMANDED
+#define SHOW_LED_RLSW_DRAWING
+#define SHOW_LED_LCD_DRAWING
+#define SHOW_NO_LED
+#endif
 
 #ifdef MULTICORE
 
