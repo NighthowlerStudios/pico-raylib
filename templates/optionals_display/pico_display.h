@@ -1,6 +1,9 @@
 // These files are not to be included by the library compile script.
 // Instead, copy and paste it into a new folder in the optionals folder
 
+#ifndef PICO_DISPLAY_H
+#define PICO_DISPLAY_H
+
 #define NUM_BUTTONS_TO_TEST 4
 
 #include <stdint.h>
@@ -37,3 +40,5 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight);
 
 // Clean up the display driver.
 void CleanupDisplay(void);
+
+#endif

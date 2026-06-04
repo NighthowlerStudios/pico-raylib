@@ -15,6 +15,265 @@
 
 #include "raylib.h"
 #include "pico_display.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <stdlib.h> // Required for malloc.
+#include <math.h>
+
+#define screenWidth 320
+#define screenHeight 240
+
+typedef enum 
+{
+    SIMPLE_SHAPES,
+    BUNNIES,
+    WAVING_CUBES
+} DemoModes;
+
+double time = 0.0;
+float rotation = 0.0f;
+DemoModes currentMode = SIMPLE_SHAPES;
+
+void simple_shapes(void)
+{
+    ClearBackground(RAYWHITE);
+
+    DrawText("some basic shapes available on raylib", 20, 20, 10, DARKGRAY);
+    DrawFPS(0, 0);
+
+    // Circle shapes and lines
+    DrawCircle(screenWidth/5, 60, 17, DARKBLUE);
+    DrawCircleGradient((Vector2){ screenWidth/5.0f, 110.0f }, 30, GREEN, SKYBLUE);
+    DrawCircleLines(screenWidth/5, 170, 40, DARKBLUE);
+    DrawEllipse(screenWidth/5, 60, 12, 10, YELLOW);
+    DrawEllipseLines(screenWidth/5, 60, 15, 12, YELLOW);
+
+    // Rectangle shapes and lines
+    DrawRectangle(screenWidth/4*2 - 60, 50, 60, 30, RED);
+    DrawRectangleGradientH(screenWidth/4*2 - 90, 85, 90, 65, MAROON, GOLD);
+    DrawRectangleLines(screenWidth/4*2 - 40, 160, 40, 30, ORANGE);  // NOTE: Uses QUADS internally, not lines
+
+    // Triangle shapes and lines
+    DrawTriangle((Vector2){ screenWidth/4.0f *3.0f, 40.0f },
+                    (Vector2){ screenWidth/4.0f *3.0f - 30.0f, 75.0f },
+                    (Vector2){ screenWidth/4.0f *3.0f + 30.0f, 75.0f }, VIOLET);
+
+    DrawTriangleLines((Vector2){ screenWidth/4.0f*3.0f, 80.0f },
+                        (Vector2){ screenWidth/4.0f*3.0f - 10.0f, 115.0f },
+                        (Vector2){ screenWidth/4.0f*3.0f + 10.0f, 115.0f }, DARKBLUE);
+
+    // Polygon shapes and lines
+    DrawPoly((Vector2){ screenWidth/4.0f*3, 175 }, 6, 40, rotation, BROWN);
+    DrawPolyLines((Vector2){ screenWidth/4.0f*3, 175 }, 6, 45, rotation, BROWN);
+    DrawPolyLinesEx((Vector2){ screenWidth/4.0f*3, 175 }, 6, 42, rotation, 6, BEIGE);
+
+    // NOTE: We draw all LINES based shapes together to optimize internal drawing,
+    // this way, all LINES are rendered in a single draw pass
+    DrawLine(18, 42, screenWidth - 18, 42, BLACK);
+}
+
+void simple_shapes_update(void)
+{
+    // Delta timed, not using GetTime().
+    rotation += 0.2f * 60.0f / GetFrameTime();
+}
+
+#define MAX_BUNNIES 800 // Don't have much stack space on embedded.
+
+typedef struct Bunny {
+    Vector2 position;
+    Vector2 speed;
+    Color color;
+} Bunny;
+
+Bunny* bunnies = NULL;
+int bunniesCount = 0;           // Bunnies counter
+bool paused = false;
+Texture2D* texBunny = NULL;
+
+uint16_t bitmap_raybunny [] = {
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 
+	0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xffff, 0xffff, 0x8430, 
+	0x8430, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0x8430, 
+	0x8430, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0x8430, 
+	0x8430, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xd69a, 0x8430, 0x8430, 0xd69a, 0xffff, 0x8430, 
+	0x8430, 0xffff, 0xd69a, 0x8430, 0x8430, 0xd69a, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xd69a, 0x8430, 0x8430, 0xd69a, 0xffff, 0x8430, 
+	0x8430, 0xffff, 0xd69a, 0x8430, 0x8430, 0xd69a, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xd69a, 0x8430, 0x8430, 0xd69a, 0xffff, 0x8430, 
+	0x8430, 0xffff, 0xd69a, 0x8430, 0x8430, 0xd69a, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0xffff, 0xffff, 0xffff, 0x8430, 0x8430, 0x8430, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0x8430, 0x8430, 0x8430, 0xffff, 0xffff, 0xffff, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xd69a, 0xffff, 0x0000, 0x0000, 0xd69a, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xd69a, 0x0000, 0x0000, 0xffff, 0xd69a, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x8430, 
+	0x8430, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0000, 
+	0x0000, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 
+	0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0x8430, 0xd69a, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xd69a, 0x8430, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0xffff, 0xd69a, 
+	0xd69a, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0000, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0x8430, 0x0000, 
+	0x0000, 0x8430, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x0000, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 
+	0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0000, 0x0000, 0x0000, 0x8430, 0x8430, 0x8430, 0x8430, 0x8430, 
+	0x8430, 0x8430, 0x8430, 0x8430, 0x8430, 0x0000, 0x0000, 0x0000, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 
+	0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0x8430, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 
+	0xd69a, 0xd69a, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0x8430, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xffff, 0xffff, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0000, 0x8430, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0x8430, 0x0000, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xd69a, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xd69a, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xd69a, 0xd69a, 0xd69a, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xd69a, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xd69a, 0x0000, 0x0000, 0x8430, 0xd69a, 
+	0xd69a, 0x8430, 0x0000, 0x0000, 0xd69a, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0x0000, 0xffff, 0xffff, 0xffff, 0x0000, 
+	0x0000, 0xffff, 0xffff, 0xffff, 0x0000, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
+	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff
+};
+
+void bunnymark(void)
+{
+    ClearBackground(RAYWHITE);
+
+    for (int i = 0; i < bunniesCount; i++)
+    {
+        // These calls are not batched, it's all RLSW and less than 8000 units which 8192 is the default unit size.
+        DrawTexture(*texBunny, (int)bunnies[i].position.x, (int)bunnies[i].position.y, bunnies[i].color);
+    }
+
+    DrawRectangle(0, 0, screenWidth, 40, BLACK);
+    DrawText(TextFormat("bunnies: %i", bunniesCount), 120, 10, 20, GREEN);
+
+    DrawFPS(0, 0);
+}
+
+void bunnymark_update(void)
+{
+    if (IsKeyPressed(KEY_A))
+        {
+            // Create more bunnies
+            for (int i = 0; i < 100; i++)
+            {
+                if (bunniesCount < MAX_BUNNIES)
+                {
+                    bunnies[bunniesCount].position = GetMousePosition();
+                    bunnies[bunniesCount].speed.x = (float)GetRandomValue(-250, 250);
+                    bunnies[bunniesCount].speed.y = (float)GetRandomValue(-250, 250);
+                    bunnies[bunniesCount].color = (Color){ GetRandomValue(50, 240),
+                                                       GetRandomValue(80, 240),
+                                                       GetRandomValue(100, 240), 255 };
+                    bunniesCount++;
+                }
+            }
+        }
+
+        if (IsKeyPressed(KEY_B)) paused = !paused;
+
+        if (!paused)
+        {
+            // Update bunnies
+            for (int i = 0; i < bunniesCount; i++)
+            {
+                bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime();
+                bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime();
+
+                if (((bunnies[i].position.x + (float)texBunny->width/2) > GetScreenWidth()) ||
+                    ((bunnies[i].position.x + (float)texBunny->width/2) < 0)) bunnies[i].speed.x *= -1;
+                if (((bunnies[i].position.y + (float)texBunny->height/2) > GetScreenHeight()) ||
+                    ((bunnies[i].position.y + (float)texBunny->height/2 - 40) < 0)) bunnies[i].speed.y *= -1;
+            }
+        }
+}
+
+Camera3D camera = { 0 };
+float scale = 0.0f;
+
+void waving_cubes(void)
+{
+    // Specify the amount of blocks in each direction
+    const int numBlocks = 15;
+
+    ClearBackground(RAYWHITE);
+
+    BeginMode3D(camera);
+
+        DrawGrid(10, 5.0f);
+
+        for (int x = 0; x < numBlocks; x++)
+        {
+            for (int y = 0; y < numBlocks; y++)
+            {
+                for (int z = 0; z < numBlocks; z++)
+                {
+                    // Scale of the blocks depends on x/y/z positions
+                    float blockScale = (x + y + z)/30.0f;
+
+                    // Scatter makes the waving effect by adding blockScale over time
+                    float scatter = sinf(blockScale*20.0f + (float)(time*4.0f));
+
+                    // Calculate the cube position
+                    Vector3 cubePos = {
+                        (float)(x - (float)numBlocks/2)*(scale*3.0f) + scatter,
+                        (float)(y - (float)numBlocks/2)*(scale*2.0f) + scatter,
+                        (float)(z - (float)numBlocks/2)*(scale*3.0f) + scatter
+                    };
+
+                    // Pick a color with a hue depending on cube position for the rainbow color effect
+                    // NOTE: This function is quite costly to be done per cube and frame,
+                    // pre-catching the results into a separate array could improve performance
+                    Color cubeColor = ColorFromHSV((float)(((x + y + z)*18)%360), 0.75f, 0.9f);
+
+                    // Calculate cube size
+                    float cubeSize = (2.4f - scale)*blockScale;
+
+                    // And finally, draw the cube!
+                    DrawCube(cubePos, cubeSize, cubeSize, cubeSize, cubeColor);
+                }
+            }
+        }
+
+    EndMode3D();
+
+    DrawFPS(10, 10);
+}
+
+void waving_cubes_update(void)
+{
+    // Calculate time scale for cube position and size
+    scale = (2.0f + (float)sin(time))*0.7f;
+
+    // Move camera around the scene
+    double cameraTime = time*0.3;
+    camera.position.x = (float)cos(cameraTime)*40.0f;
+    camera.position.z = (float)sin(cameraTime)*40.0f;
+}
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -24,65 +283,81 @@ int main(void)
     // Initialization
     //--------------------------------------------------------------------------------------
     // TODO: Support portrait windowing.
-    const int screenWidth = 320;
-    const int screenHeight = 240;
 
     // Also used to test that the screen gets clamped by force.
-    InitWindow(screenWidth, screenHeight, "raylib [shapes] example - basic shapes");
-
-    float rotation = 0.0f;
+    // Note: to allocate this to SRAM, make sure InitWindow is first before all other allocations and that your stack is rather small!
+    // For larger screens, it'll go to PSRAM instead.
+    InitWindow(screenWidth, screenHeight, "pico raylib example");
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
+    Image imgBunny = {
+        .data = &bitmap_raybunny,
+        .width = 32,
+        .height = 32,
+        .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
+        .mipmaps = 1
+    };
+
+    Texture2D texBunny = LoadTextureFromImage(imgBunny);
+    bunnies = (Bunny*)RL_MALLOC(MAX_BUNNIES*sizeof(Bunny));    // Bunnies array
+
+    camera.position = (Vector3){ 30.0f, 20.0f, 30.0f }; // Camera position
+    camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
+    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
+    camera.fovy = 70.0f;                                // Camera field-of-view Y
+    camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
+
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
+        time = GetTime();
+
+        if (IsKeyPressed(KEY_X))
+        {
+            currentMode++;
+            if (currentMode > WAVING_CUBES)
+            {
+                currentMode = SIMPLE_SHAPES;
+            }
+        }
+
         // Update
-        //----------------------------------------------------------------------------------
-        rotation += 0.2f;
-        //----------------------------------------------------------------------------------
+        switch (currentMode)
+        {
+            case SIMPLE_SHAPES:
+                simple_shapes_update();
+                break;
+            case BUNNIES:
+                bunnymark_update();
+                break;
+            case WAVING_CUBES:
+                waving_cubes_update();
+                break;
+            default:
+                break;
+        }
 
         // Draw
-        //----------------------------------------------------------------------------------
         BeginDrawing();
 
-            ClearBackground(RAYWHITE);
-
-            DrawText("some basic shapes available on raylib", 20, 20, 10, DARKGRAY);
-            DrawFPS(0, 0);
-
-            // Circle shapes and lines
-            DrawCircle(screenWidth/5, 60, 17, DARKBLUE);
-            DrawCircleGradient((Vector2){ screenWidth/5.0f, 110.0f }, 30, GREEN, SKYBLUE);
-            DrawCircleLines(screenWidth/5, 170, 40, DARKBLUE);
-            DrawEllipse(screenWidth/5, 60, 12, 10, YELLOW);
-            DrawEllipseLines(screenWidth/5, 60, 15, 12, YELLOW);
-
-            // Rectangle shapes and lines
-            DrawRectangle(screenWidth/4*2 - 60, 50, 60, 30, RED);
-            DrawRectangleGradientH(screenWidth/4*2 - 90, 85, 90, 65, MAROON, GOLD);
-            DrawRectangleLines(screenWidth/4*2 - 40, 160, 40, 30, ORANGE);  // NOTE: Uses QUADS internally, not lines
-
-            // Triangle shapes and lines
-            DrawTriangle((Vector2){ screenWidth/4.0f *3.0f, 40.0f },
-                         (Vector2){ screenWidth/4.0f *3.0f - 30.0f, 75.0f },
-                         (Vector2){ screenWidth/4.0f *3.0f + 30.0f, 75.0f }, VIOLET);
-
-            DrawTriangleLines((Vector2){ screenWidth/4.0f*3.0f, 80.0f },
-                              (Vector2){ screenWidth/4.0f*3.0f - 10.0f, 115.0f },
-                              (Vector2){ screenWidth/4.0f*3.0f + 10.0f, 115.0f }, DARKBLUE);
-
-            // Polygon shapes and lines
-            DrawPoly((Vector2){ screenWidth/4.0f*3, 175 }, 6, 40, rotation, BROWN);
-            DrawPolyLines((Vector2){ screenWidth/4.0f*3, 175 }, 6, 45, rotation, BROWN);
-            DrawPolyLinesEx((Vector2){ screenWidth/4.0f*3, 175 }, 6, 42, rotation, 6, BEIGE);
-
-            // NOTE: We draw all LINES based shapes together to optimize internal drawing,
-            // this way, all LINES are rendered in a single draw pass
-            DrawLine(18, 42, screenWidth - 18, 42, BLACK);
+            switch (currentMode)
+            {
+                case SIMPLE_SHAPES:
+                    simple_shapes();
+                    break;
+                case BUNNIES:
+                    bunnymark();
+                    break;
+                case WAVING_CUBES:
+                    waving_cubes();
+                    break;
+                default:
+                    break;
+            }
+            
         EndDrawing();
-        //----------------------------------------------------------------------------------
     }
 
     // De-Initialization

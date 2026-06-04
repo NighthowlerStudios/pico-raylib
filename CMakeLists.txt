@@ -161,6 +161,7 @@ set(raylib_sources
     "raylib/src/rtext.c"
     "raylib/src/rtextures.c"
     "raylib/src/rshapes.c"
+    "raylib/src/rmodels.c"
 )
 
 if (AUX_AUDIO)
@@ -173,9 +174,6 @@ if (AUX_AUDIO)
 endif()
 
 if (SD_CARD)
-    list(APPEND raylib_sources
-        "raylib/src/rmodels.c"
-    )
     list(APPEND raylib_defs
         SD_CARD
     )
@@ -213,6 +211,7 @@ set(pico_libraries
     pico_float
     pico_double
     pico_stdio_usb
+    pico_rand
 
     # Replace default allocators with PSRAM ones.
     sparkfun_pico
@@ -250,7 +249,7 @@ target_compile_definitions(pico_raylib INTERFACE
 )
 
 target_compile_options(pico_raylib INTERFACE
-    -I${CMAKE_CURRENT_LIST_DIR}/include          # Custom config.h takes precedence
+    -I${CMAKE_CURRENT_LIST_DIR}/wrapper/include          # Custom config.h takes precedence
     -Wno-incompatible-pointer-types              # M3D and software renderer compatibility
     -Wno-uninitialized
     -Wno-nonnull

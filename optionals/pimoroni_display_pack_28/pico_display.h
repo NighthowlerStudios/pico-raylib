@@ -1,5 +1,8 @@
 // Copy of templates/optionals_display
 
+#ifndef PICO_DISPLAY_H
+#define PICO_DISPLAY_H
+
 #define NUM_BUTTONS_TO_TEST 4
 
 #include <stdint.h>
@@ -42,3 +45,5 @@ void SetBacklight(uint8_t brightness);
 
 void InitRGBLED(void);
 void SetRGBLED(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness);
+
+#endif
