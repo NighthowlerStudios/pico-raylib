@@ -15,6 +15,7 @@
 
 #include "raylib.h"
 #include "pico_display.h"
+#include "pico/stdlib.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h> // Required for malloc.
@@ -90,7 +91,7 @@ typedef struct Bunny {
 Bunny* bunnies = NULL;
 int bunniesCount = 0;           // Bunnies counter
 bool paused = false;
-Texture2D* texBunny = NULL;
+Texture2D texBunny;  // Doesn't contain the data.  RLSW will.
 
 uint16_t bitmap_raybunny [] = {
 	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 
@@ -166,7 +167,7 @@ void bunnymark(void)
     for (int i = 0; i < bunniesCount; i++)
     {
         // These calls are not batched, it's all RLSW and less than 8000 units which 8192 is the default unit size.
-        DrawTexture(*texBunny, (int)bunnies[i].position.x, (int)bunnies[i].position.y, bunnies[i].color);
+        DrawTexture(texBunny, (int)bunnies[i].position.x, (int)bunnies[i].position.y, bunnies[i].color);
     }
 
     DrawRectangle(0, 0, screenWidth, 40, BLACK);
@@ -178,39 +179,47 @@ void bunnymark(void)
 void bunnymark_update(void)
 {
     if (IsKeyPressed(KEY_A))
+    {
+        // Create more bunnies
+        for (int i = 0; i < 10; i++)
         {
-            // Create more bunnies
-            for (int i = 0; i < 100; i++)
+            if (bunniesCount < MAX_BUNNIES)
             {
-                if (bunniesCount < MAX_BUNNIES)
-                {
-                    bunnies[bunniesCount].position = GetMousePosition();
-                    bunnies[bunniesCount].speed.x = (float)GetRandomValue(-250, 250);
-                    bunnies[bunniesCount].speed.y = (float)GetRandomValue(-250, 250);
-                    bunnies[bunniesCount].color = (Color){ GetRandomValue(50, 240),
-                                                       GetRandomValue(80, 240),
-                                                       GetRandomValue(100, 240), 255 };
-                    bunniesCount++;
-                }
+                bunnies[bunniesCount].position.x = GetRandomValue(50, 200);
+                bunnies[bunniesCount].position.y = GetRandomValue(50, 200);
+                bunnies[bunniesCount].speed.x = (float)GetRandomValue(-250, 250);
+                bunnies[bunniesCount].speed.y = (float)GetRandomValue(-250, 250);
+                bunnies[bunniesCount].color = (Color){ GetRandomValue(50, 240),
+                                                    GetRandomValue(80, 240),
+                                                    GetRandomValue(100, 240), 255 };
+                bunniesCount++;
             }
         }
+    }
 
-        if (IsKeyPressed(KEY_B)) paused = !paused;
+    // Update bunnies
+    for (int i = 0; i < bunniesCount; i++)
+    {
+        bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime();
+        bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime();
 
-        if (!paused)
+        if (((bunnies[i].position.x + (float)texBunny.width/2) > GetScreenWidth()) ||
+            ((bunnies[i].position.x + (float)texBunny.width/2) < 0)) 
         {
-            // Update bunnies
-            for (int i = 0; i < bunniesCount; i++)
-            {
-                bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime();
-                bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime();
-
-                if (((bunnies[i].position.x + (float)texBunny->width/2) > GetScreenWidth()) ||
-                    ((bunnies[i].position.x + (float)texBunny->width/2) < 0)) bunnies[i].speed.x *= -1;
-                if (((bunnies[i].position.y + (float)texBunny->height/2) > GetScreenHeight()) ||
-                    ((bunnies[i].position.y + (float)texBunny->height/2 - 40) < 0)) bunnies[i].speed.y *= -1;
-            }
+            bunnies[i].speed.x *= -1;
+            // Force to re-enter boundary
+            bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime() * 2;
+            bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime() * 2;
         }
+        if (((bunnies[i].position.y + (float)texBunny.height/2) > GetScreenHeight()) ||
+            ((bunnies[i].position.y + (float)texBunny.height/2 - 40) < 0)) 
+        {
+            bunnies[i].speed.y *= -1;
+            // Force to re-enter boundary
+            bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime() * 2;
+            bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime() * 2;
+        }
+    }
 }
 
 Camera3D camera = { 0 };
@@ -276,6 +285,9 @@ void waving_cubes_update(void)
     camera.position.z = (float)sin(cameraTime)*40.0f;
 }
 
+#include "hardware/vreg.h"
+#include "hardware/clocks.h"
+
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
@@ -284,6 +296,13 @@ int main(void)
     // Initialization
     //--------------------------------------------------------------------------------------
     // TODO: Support portrait windowing.
+
+    // Lost the silicon lottery?  Remove these.
+    // We use these numbers to show competition with the ESP32, which has a 240MHz clock.
+    vreg_set_voltage(VREG_VOLTAGE_1_20);
+    // This must be divisible by 75 mhz but in a ratio divisible by 2, otherwise an lcd spi communication will divide badly!
+    set_sys_clock_khz(250000, true);
+    sleep_ms(100);
 
     // Also used to test that the screen gets clamped by force.
     // Note: to allocate this to SRAM, make sure InitWindow is first before all other allocations and that your stack is rather small!
@@ -301,7 +320,7 @@ int main(void)
         .mipmaps = 1
     };
 
-    Texture2D texBunny = LoadTextureFromImage(imgBunny);
+    texBunny = LoadTextureFromImage(imgBunny);
     bunnies = (Bunny*)RL_MALLOC(MAX_BUNNIES*sizeof(Bunny));    // Bunnies array
 
     camera.position = (Vector3){ 30.0f, 20.0f, 30.0f }; // Camera position
@@ -310,12 +329,14 @@ int main(void)
     camera.fovy = 70.0f;                                // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
 
+    bool switchLock = false;
+
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
         time = GetTime();
 
-        if (IsKeyPressed(KEY_X))
+        if (IsKeyPressed(KEY_X) && !switchLock)
         {
             printf("[EXAMPLE] Switching modes.\n");
             currentMode++;
@@ -323,6 +344,12 @@ int main(void)
             {
                 currentMode = SIMPLE_SHAPES;
             }
+
+            switchLock = true;
+        }
+        else
+        {
+            switchLock = false;
         }
 
         // Update
@@ -342,8 +369,9 @@ int main(void)
         }
 
         // Draw
-        BeginDrawing();
+        double currentTime = GetTime();
 
+        BeginDrawing();
             switch (currentMode)
             {
                 case SIMPLE_SHAPES:
@@ -358,8 +386,13 @@ int main(void)
                 default:
                     break;
             }
+
+            //printf("[EXAMPLE] Draw time: %f\n", GetTime() - currentTime);
+            currentTime = GetTime();
             
         EndDrawing();
+
+        //printf("[EXAMPLE] SPI flip time: %f\n", GetTime() - currentTime);
     }
 
     // De-Initialization

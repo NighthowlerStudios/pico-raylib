@@ -149,7 +149,7 @@ static uint8_t st_dma;
 
 // The ST7789 requires 16 ns between SPI rising edges.
 // 16 ns = 62,500,000 Hz
-// 2350 doesn't support 62,500,000 so use 75,000,000 seems to work.
+// We are write only, so going past 62,500,000 is a safe overclock.
 static const uint32_t SPI_BAUD = 75000000;
 
 void command(uint8_t commandChar, int len, const char* data) {
@@ -255,6 +255,13 @@ void InitDisplay(void)
     SHOW_LED_INITIALIZING_ST7789;
 
     printf("[DEVICE] Initializing SPI to the LCD...\n");
+
+    // Force the peripheral clock to be half the CPU. This will also force SPI to be as high as it can go.
+    // Consequently, we prevent overclocks past 250mhz.
+    uint32_t freq = clock_get_hz(clk_sys);
+    clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, freq, freq);
+
+    sleep_ms(100);
 
     // First construct the pin information.
     // configure spi interface and pins
@@ -425,6 +432,7 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 #else
 // If this is flashing, that's good!  It means the CPU isn't locked up.
     SHOW_LED_LCD_DRAWING;
+    // Takes 0.01952 seconds on average.  
     command(RAMWR, screenWidth * screenHeight * sizeof(uint16_t), (const char*)buffer);
     SHOW_LED_RLSW_DRAWING;
 #endif

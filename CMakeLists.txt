@@ -220,6 +220,8 @@ set(pico_libraries
     hardware_interp
     hardware_timer
     hardware_spi
+    hardware_clocks
+    hardware_vreg
 )
 
 # Unfortunately we can't use most third party's drivers as they're usually implemented with pico_graphics.
