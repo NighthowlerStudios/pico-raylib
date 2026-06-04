@@ -20,8 +20,22 @@ typedef enum Orientation {
 
 extern Orientation currentOrientation;
 
-// Used as a buffer for hardware buttons that should emulate keyboard keys.
-extern KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST];
+// Emulate buttons like keys on the keyboard.
+typedef struct PicoButton {
+    KeyboardKey key;
+    uint8_t buttonPin;
+    bool isDown;
+} PicoButton;
+
+extern PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST];
+
+// Comparison table.
+PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST] = {
+    { KEY_A, 0, false },
+    { KEY_B, 0, false },
+    { KEY_X, 0, false },
+    { KEY_ESCAPE, 0, false } // Quit button.
+};
 
 // Overrides the minimum resolution with a capper, if needed.
 void GetMinimumResolution(int* width, int* height);

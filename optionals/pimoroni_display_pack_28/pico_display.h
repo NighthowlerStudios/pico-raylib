@@ -10,6 +10,16 @@
 
 inline const char* GetMonitorDeviceName() { return "Pimoroni Pico Display Pack 2.8\""; }
 
+static const int PICO_DISPLAY_WIDTH = 320;
+static const int PICO_DISPLAY_HEIGHT = 240;
+static const uint8_t PICO_DISPLAY_BUTTON_A = 12;
+static const uint8_t PICO_DISPLAY_BUTTON_B = 13;
+static const uint8_t PICO_DISPLAY_BUTTON_X = 14;
+static const uint8_t PICO_DISPLAY_BUTTON_Y = 15;
+static const uint8_t PICO_DISPLAY_LED_R = 26;
+static const uint8_t PICO_DISPLAY_LED_G = 27;
+static const uint8_t PICO_DISPLAY_LED_B = 28;
+
 typedef enum Orientation {
     PORTRAIT = 0,
     LANDSCAPE = 1,
@@ -19,8 +29,14 @@ typedef enum Orientation {
 
 extern Orientation currentOrientation;
 
-// Used as a buffer for hardware buttons that should emulate keyboard keys.
-extern KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST];
+// Emulate buttons like keys on the keyboard.
+typedef struct PicoButton {
+    KeyboardKey key;
+    uint8_t buttonPin;
+    bool isDown;
+} PicoButton;
+
+extern PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST];
 
 // Overrides the minimum resolution with a capper, if needed.
 void GetMinimumResolution(int* width, int* height);

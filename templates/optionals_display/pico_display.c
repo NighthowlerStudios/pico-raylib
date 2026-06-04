@@ -3,8 +3,15 @@
 
 #include "pico_display.h"
 
-KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST] = { 0 };
 Orientation currentOrientation = DISPLAY_ORIENTATION;
+// Comparison table.
+PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST] = {
+    { KEY_A, PICO_DISPLAY_BUTTON_A, false },
+    { KEY_B, PICO_DISPLAY_BUTTON_B, false },
+    { KEY_X, PICO_DISPLAY_BUTTON_X, false },
+    { KEY_ESCAPE, PICO_DISPLAY_BUTTON_Y, false } // Quit button.
+};
+
 
 void GetMinimumResolution(int* width, int* height)
 {
@@ -40,4 +47,5 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 
 void CleanupDisplay(void)
 {
+
 }

@@ -9,18 +9,14 @@
 #include "pico/stdlib.h"
 #include <stdio.h>
 
-KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST] = { 0 };
 Orientation currentOrientation = DISPLAY_ORIENTATION;
-
-static const int PICO_DISPLAY_WIDTH = 320;
-static const int PICO_DISPLAY_HEIGHT = 240;
-static const uint8_t PICO_DISPLAY_BUTTON_A = 12;
-static const uint8_t PICO_DISPLAY_BUTTON_B = 13;
-static const uint8_t PICO_DISPLAY_BUTTON_X = 14;
-static const uint8_t PICO_DISPLAY_BUTTON_Y = 15;
-static const uint8_t PICO_DISPLAY_LED_R = 26;
-static const uint8_t PICO_DISPLAY_LED_G = 27;
-static const uint8_t PICO_DISPLAY_LED_B = 28;
+// Comparison table.
+PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST] = {
+    { KEY_A, PICO_DISPLAY_BUTTON_A, false },
+    { KEY_B, PICO_DISPLAY_BUTTON_B, false },
+    { KEY_X, PICO_DISPLAY_BUTTON_X, false },
+    { KEY_ESCAPE, PICO_DISPLAY_BUTTON_Y, false } // Quit button.
+};
 
 int GetHardwareResolutionWidth()
 {
@@ -60,20 +56,6 @@ void GetMaximumResolution(int* width, int* height)
     *height = GetHardwareResolutionHeight();
 }
 
-// Emulate buttons like keys on the keyboard.
-typedef struct PicoButton {
-    KeyboardKey key;
-    uint8_t buttonPin;
-} PicoButton;
-
-// Comparison table.
-PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST] = {
-    { KEY_A, PICO_DISPLAY_BUTTON_A },
-    { KEY_B, PICO_DISPLAY_BUTTON_B },
-    { KEY_X, PICO_DISPLAY_BUTTON_X },
-    { KEY_ESCAPE, PICO_DISPLAY_BUTTON_Y } // Quit button.
-};
-
 // Internal
 void SetupButton(const uint8_t buttonPin)
 {
@@ -95,7 +77,7 @@ void PollInput(void)
     for (int i = 0; i < NUM_BUTTONS_TO_TEST; i++)
     {
         // These buttons go low when pressed, not high.
-        picoButtons[i] = gpio_get(picoButtonTable[i].buttonPin) ? KEY_NULL : picoButtonTable[i].key;
+        picoButtonTable[i].isDown = !gpio_get(picoButtonTable[i].buttonPin);
     }
 }
 
@@ -214,7 +196,7 @@ void SetBacklight(uint8_t brightness) {
 #define SHOW_LED_NO_FRAME_COMMANDED
 #define SHOW_LED_RLSW_DRAWING
 #define SHOW_LED_LCD_DRAWING
-#define SHOW_NO_LED
+#define SHOW_NO_LED SetRGBLED(0, 0, 0, 0)
 #endif
 
 #ifdef MULTICORE

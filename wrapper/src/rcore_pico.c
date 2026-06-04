@@ -624,6 +624,13 @@ void PollInputEvents(void)
     CORE.Input.Keyboard.keyPressedQueueCount = 0;
     CORE.Input.Keyboard.charPressedQueueCount = 0;
 
+    // Register previous key state and reset repeat flags
+    for (int i = 0; i < MAX_KEYBOARD_KEYS; i++)
+    {
+        CORE.Input.Keyboard.previousKeyState[i] = CORE.Input.Keyboard.currentKeyState[i];
+        CORE.Input.Keyboard.keyRepeatInFrame[i] = 0;
+    }
+
     // Reset mouse wheel
     CORE.Input.Mouse.currentWheelMove.x = 0;
     CORE.Input.Mouse.currentWheelMove.y = 0;
@@ -632,21 +639,21 @@ void PollInputEvents(void)
 
     for (int i = 0; i < NUM_BUTTONS_TO_TEST; i++)
     {
-        if (picoButtons[i] != KEY_NULL)
+        if (picoButtonTable[i].isDown)
         {
             // printf("%d pressed.\n", picoButtons[i]);
             // If key was up, add it to the key pressed queue
-            if ((CORE.Input.Keyboard.currentKeyState[picoButtons[i]] == 0) && (CORE.Input.Keyboard.keyPressedQueueCount < MAX_KEY_PRESSED_QUEUE))
+            if ((CORE.Input.Keyboard.currentKeyState[picoButtonTable[i].key] == 0) && (CORE.Input.Keyboard.keyPressedQueueCount < MAX_KEY_PRESSED_QUEUE))
             {
-                CORE.Input.Keyboard.keyPressedQueue[CORE.Input.Keyboard.keyPressedQueueCount] = picoButtons[i];
+                CORE.Input.Keyboard.keyPressedQueue[CORE.Input.Keyboard.keyPressedQueueCount] = picoButtonTable[i].key;
                 CORE.Input.Keyboard.keyPressedQueueCount++;
             }
 
-            CORE.Input.Keyboard.currentKeyState[picoButtons[i]] = 1;
+            CORE.Input.Keyboard.currentKeyState[picoButtonTable[i].key] = 1;
         }
         else
         {
-            CORE.Input.Keyboard.currentKeyState[picoButtons[i]] = 0;
+            CORE.Input.Keyboard.currentKeyState[picoButtonTable[i].key] = 0;
         }
     }
 

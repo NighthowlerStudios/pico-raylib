@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h> // Required for malloc.
+#include <stdio.h>
 #include <math.h>
 
 #define screenWidth 320
@@ -316,6 +317,7 @@ int main(void)
 
         if (IsKeyPressed(KEY_X))
         {
+            printf("[EXAMPLE] Switching modes.\n");
             currentMode++;
             if (currentMode > WAVING_CUBES)
             {
