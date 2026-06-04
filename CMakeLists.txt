@@ -59,17 +59,26 @@ endif()
 cmake_dependent_option(
     SD_CARD 
     "An SD card module is wired up." 
-    OFF
-    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni VGA Demo"]]
-    ON
+    OFF # The below is true, this option is now configurable
+    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo"]]
+    ON # The above is false, this option is now locked to ON
 )
 
 cmake_dependent_option(
     AUX_AUDIO
     "An audio output is wired up."
-    OFF
-    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni VGA Demo"]]
-    ON
+    OFF # The below is true, this option is now configurable
+    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo"]]
+    ON # The above is false, this option is now locked to ON
+)
+
+# The following remain off because VGA and DVI need a carefully timed core to bitbang.
+cmake_dependent_option(
+    SINGLE_CORE
+    "Use the same core Raylib uses to draw to the LCD.  Not compatible with VGA/DVI"
+    ON # The below is true, this option is now configurable
+    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo" OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_DVI_Breakout"]]
+    OFF # The above is false, this option is now locked to OFF
 )
 
 include(pico-sdk/pico_sdk_init.cmake)

@@ -199,24 +199,34 @@ void SetBacklight(uint8_t brightness) {
     pwm_set_gpio_level(SPI_BG_FRONT_PWM, value);
 }
 
+// Processing state colours on the LED to monitor what the CPU is doing even if Raylib has become unresponsive.
+#define SHOW_LED_WAITING_FOR_USB SetRGBLED(255, 255, 0, 15)
+#define SHOW_LED_INITIALIZING_ST7789 SetRGBLED(255, 0, 0, 15)
+#define SHOW_LED_NO_FRAME_COMMANDED SetRGBLED(0, 255, 0, 15)
+#define SHOW_LED_RLSW_DRAWING SetRGBLED(0, 255, 255, 15)
+#define SHOW_LED_LCD_DRAWING SetRGBLED(255, 0, 255, 15)
+#define SHOW_NO_LED SetRGBLED(0, 0, 0, 0)
+
+#ifdef MULTICORE
+
 // We use lazy scheduling in here because the framebuffer is read-only on core 2 anyway.
 #include "pico/mutex.h"
 #include "pico/multicore.h"
 
+int currentWidth = 320;
+int currentHeight = 240;
 static mutex_t frameBufferMutex;
 uint16_t* currentBuffer = NULL;
 // Using this as a flag to indicate whether the Raylib buffer has been swapped.
 bool flipCompleted = false;
-int currentWidth = 320;
-int currentHeight = 240;
 
 void Core1FlipBuffer(void)
 {
     while(true)
     {
-        SetRGBLED(0, 255, 255, 31);
+        SHOW_LED_RLSW_DRAWING;
         while (!flipCompleted);
-        SetRGBLED(255, 0, 255, 31);
+        SHOW_LED_LCD_DRAWING;
 
         mutex_enter_blocking(&frameBufferMutex);
 
@@ -231,6 +241,8 @@ void Core1FlipBuffer(void)
     }
 }
 
+#endif
+
 // And now expose this functionality to Raylib.
 void InitDisplay(void)
 {
@@ -241,14 +253,14 @@ void InitDisplay(void)
 
     while (!stdio_usb_connected())
     {
-        SetRGBLED(255, 255, 0, 31);
+        SHOW_LED_WAITING_FOR_USB;
         sleep_ms(250);
-        SetRGBLED(0, 0, 0, 0);
+        SHOW_NO_LED;
         sleep_ms(250);
     }
 #endif
 
-    SetRGBLED(255, 0, 0, 31);
+    SHOW_LED_INITIALIZING_ST7789;
 
     printf("[DEVICE] Initializing SPI to the LCD...\n");
 
@@ -368,14 +380,22 @@ void InitDisplay(void)
         SetBacklight(255); // Turn backlight on now surprises have passed
     }
 
-    printf("[DEVICE] Setting up renderer core on Core 2 (1)...\n");
+    SHOW_LED_NO_FRAME_COMMANDED;
     
     // Create the mutex and initialize Core 2.
+#ifdef MULTICORE
+    printf("[DEVICE] Setting up renderer core on Core 2 (1)...\n");
+
     mutex_init(&frameBufferMutex);
     multicore_reset_core1();
     multicore_launch_core1(Core1FlipBuffer);
+#else
+    printf("[DEVICE] [WARNING] LCD SPI is set to use the same core as Raylib.  Expect serious bottlenecks!\n");
 
-    SetRGBLED(0, 255, 0, 31);
+    SHOW_LED_RLSW_DRAWING;
+#endif
+
+   
 
     printf("[DEVICE] Device ready.\n");
 }
@@ -383,6 +403,7 @@ void InitDisplay(void)
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
     // Raylib is not allowed to continue until core 2 is done drawing the current buffer.
+#ifdef MULTICORE
     while (frameBufferMutex.owner != LOCK_INVALID_OWNER_ID);
     
     currentBuffer = buffer;
@@ -390,19 +411,29 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
     currentHeight = screenHeight;
     // On start, this will force Core 1 to wait until first flip, prevents null pointer.
     flipCompleted = true;
+#else
+// If this is flashing, that's good!  It means the CPU isn't locked up.
+    SHOW_LED_LCD_DRAWING;
+    command(RAMWR, screenWidth * screenHeight * sizeof(uint16_t), (const char*)buffer);
+    SHOW_LED_RLSW_DRAWING;
+#endif
+
+
 }
 
 void CleanupDisplay(void)
 {
     // Don't unallocate dma's until the current frame is done drawing.
+#ifdef MULTICORE
     while (frameBufferMutex.owner != LOCK_INVALID_OWNER_ID);
+#endif
     if(dma_channel_is_claimed(st_dma)) {
         dma_channel_abort(st_dma);
         dma_channel_unclaim(st_dma);
     }
 
     // Conserve power.
-    SetRGBLED(0, 0, 0, 0);
+    SHOW_NO_LED;
     SetBacklight(0);
     commandNoString(DISPOFF);
     commandNoString(SLPIN);
@@ -435,5 +466,5 @@ void InitRGBLED(void)
     pwm_init(pwm_gpio_to_slice_num(PICO_DISPLAY_LED_B), &pwm_cfg, true);
     gpio_set_function(PICO_DISPLAY_LED_B, GPIO_FUNC_PWM);
 
-    SetRGBLED(0, 0, 0, 0);
+    SHOW_NO_LED;
 }
