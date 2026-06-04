@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.25)
 
 set(CMAKE_C_STANDARD 11)
-# We're forced to define these by the Pico SDK.
+# If you wish
 #set(CMAKE_CXX_STANDARD 17)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# For performance and binary size, we use this as default.  Use Debug manually if you want to use a Debug Module (external hardware required)
+set(CMAKE_BUILD_TYPE Release)
 
 find_package(Git REQUIRED)
 
@@ -41,6 +44,10 @@ enum_option(RAYLIB_DISPLAY
 enum_option(RAYLIB_BOARD 
     "Pimoroni_Pico_Plus2;Pimoroni_Pico_Plus2_W" 
     "Which RP2350 board is being used?"
+)
+enum_option(DISPLAY_ORIENTATION
+    "Landscape;Portrait;Inverted_Landscape;Inverted_Portrait"
+    "Which orientation is the screen?"
 )
 
 if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
@@ -118,6 +125,19 @@ set(raylib_defs
     SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
     SFE_RP2350_XIP_CSI_PIN=PIMORONI_PICO_PLUS2_PSRAM_CS_PIN
 )
+
+# TODO
+# Utilize the enum found in pico_display.h
+# Note, if you copied a new one to optionals, that enum must be defined!  Otherwise we lose this convenience.
+if (DISPLAY_ORIENTATION STREQUAL "Landscape")
+    list(APPEND raylib_defs DISPLAY_ORIENTATION=0)
+elseif (DISPLAY_ORIENTATION STREQUAL "Portrait")
+    list(APPEND raylib_defs DISPLAY_ORIENTATION=1)
+elseif (DISPLAY_ORIENTATION STREQUAL "Inverted_Landscape")
+    list(APPEND raylib_defs DISPLAY_ORIENTATION=2)
+elseif(DISPLAY_ORIENTATION STREQUAL "Inverted_Portrait")
+    list(APPEND raylib_defs DISPLAY_ORIENTATION=3)
+endif()
 
 # We rip apart the raylib sources to stub some of the defines for now.
 

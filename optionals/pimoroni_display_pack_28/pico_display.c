@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST] = { 0 };
-Orientation currentOrientation = LANDSCAPE;
+Orientation currentOrientation = DISPLAY_ORIENTATION;
 
 static const int PICO_DISPLAY_WIDTH = 320;
 static const int PICO_DISPLAY_HEIGHT = 240;
@@ -342,16 +342,36 @@ void InitDisplay(void)
 
     // Setup the bus boundaries.
     // Pico Display 2.0
-    int width = (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT) ? 320 : 240;
-    int height = (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT) ? 240 : 320;
+    // TODO: Actually make this configurable.
+    currentOrientation = LANDSCAPE;
+
+    int width = (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT) ? 240 : 320;
+    int height = (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT) ? 320 : 240;
+    
+    switch (currentOrientation)
+    {
+        // OpenGL draws the buffer from the bottom left as origin, instead of top left.  
+        // So instead of Top to Bottom, we need Bottom to Top.  But still remain Left to Right in all cases.
+        // Then, and only after that logic, rotate and reorder.
+        case PORTRAIT:
+            maSPI_DEFAULT_DCtl = ROW_ORDER;
+            break;
+        case INVERTED_LANDSCAPE:
+            maSPI_DEFAULT_DCtl = ROW_ORDER | COL_ORDER | SWAP_XY;
+            break;
+        case INVERTED_PORTRAIT:
+            maSPI_DEFAULT_DCtl = ROW_ORDER;
+            break;
+        default: // LANDSCAPE
+            maSPI_DEFAULT_DCtl = SWAP_XY;
+            break;
+    }
 
     if (width == 320 && height == 240) {
         caset[0] = 0;
         caset[1] = 319;
         raset[0] = 0;
         raset[1] = 239;
-        maSPI_DEFAULT_DCtl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? ROW_ORDER : COL_ORDER;
-        maSPI_DEFAULT_DCtl |= SWAP_XY | SCAN_ORDER;
     }
 
     // Pico Display 2.0 at 90 degree rotation
@@ -360,7 +380,6 @@ void InitDisplay(void)
         caset[1] = 239;
         raset[0] = 0;
         raset[1] = 319;
-        maSPI_DEFAULT_DCtl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? (COL_ORDER | ROW_ORDER) : 0;
     }
 
     // Byte swap the 16bit rows/cols values

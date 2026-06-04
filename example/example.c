@@ -14,6 +14,7 @@
 ********************************************************************************************/
 
 #include "raylib.h"
+#include "pico_display.h"
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -22,6 +23,7 @@ int main(void)
 {
     // Initialization
     //--------------------------------------------------------------------------------------
+    // TODO: Support portrait windowing.
     const int screenWidth = 320;
     const int screenHeight = 240;
 
@@ -48,7 +50,7 @@ int main(void)
             ClearBackground(RAYWHITE);
 
             DrawText("some basic shapes available on raylib", 20, 20, 10, DARKGRAY);
-            DrawFPS(20, 40);
+            DrawFPS(0, 0);
 
             // Circle shapes and lines
             DrawCircle(screenWidth/5, 60, 17, DARKBLUE);

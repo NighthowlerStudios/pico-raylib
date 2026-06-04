@@ -4,7 +4,7 @@
 #include "pico_display.h"
 
 KeyboardKey picoButtons[NUM_BUTTONS_TO_TEST] = { 0 };
-Orientation currentOrientation = LANDSCAPE;
+Orientation currentOrientation = DISPLAY_ORIENTATION;
 
 void GetMinimumResolution(int* width, int* height)
 {
