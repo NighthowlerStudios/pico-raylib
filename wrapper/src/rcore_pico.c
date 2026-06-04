@@ -634,8 +634,8 @@ void PollInputEvents(void)
     {
         if (picoButtons[i] != KEY_NULL)
         {
+            // printf("%d pressed.\n", picoButtons[i]);
             // If key was up, add it to the key pressed queue
-            KeyboardKey key = picoButtons[i];
             if ((CORE.Input.Keyboard.currentKeyState[picoButtons[i]] == 0) && (CORE.Input.Keyboard.keyPressedQueueCount < MAX_KEY_PRESSED_QUEUE))
             {
                 CORE.Input.Keyboard.keyPressedQueue[CORE.Input.Keyboard.keyPressedQueueCount] = picoButtons[i];

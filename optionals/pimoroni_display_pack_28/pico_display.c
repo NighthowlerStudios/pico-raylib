@@ -79,7 +79,7 @@ void SetupButton(const uint8_t buttonPin)
 {
     gpio_init(buttonPin);
     gpio_set_dir(buttonPin, GPIO_IN);
-    gpio_pull_down(buttonPin);
+    gpio_pull_up(buttonPin);
 }
 
 void InitInput(void)
@@ -94,7 +94,8 @@ void PollInput(void)
 {
     for (int i = 0; i < NUM_BUTTONS_TO_TEST; i++)
     {
-        picoButtons[i] = gpio_get(picoButtonTable[i].buttonPin) ? picoButtonTable[i].key : KEY_NULL;
+        // These buttons go low when pressed, not high.
+        picoButtons[i] = gpio_get(picoButtonTable[i].buttonPin) ? KEY_NULL : picoButtonTable[i].key;
     }
 }
 
