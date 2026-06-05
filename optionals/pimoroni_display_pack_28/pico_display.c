@@ -432,7 +432,9 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 #else
 // If this is flashing, that's good!  It means the CPU isn't locked up.
     SHOW_LED_LCD_DRAWING;
-    // Takes 0.01952 seconds on average.  
+    // Takes 0.01952 seconds on average, but draw time of raylib is quite high.  
+    // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
+    // Once we use core 2 this won't be too additive to frame time, but you'll be hard capped to 40 fps.
     command(RAMWR, screenWidth * screenHeight * sizeof(uint16_t), (const char*)buffer);
     SHOW_LED_RLSW_DRAWING;
 #endif
