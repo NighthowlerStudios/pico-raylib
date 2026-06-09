@@ -4,11 +4,11 @@ A port of Raylib to boards with RP2350 and PSRAM
 Please note that pimoroni-pico is a submodule included but not linked to anything, but is provided for ease of copy paste when reimplementing a CPP driver in C.  It may be removed from this repository in the future.
 
 # How to use:
-In your project CMake, add_subdirectory() to the path you pulled this git repository to.
+In your project CMake, add_subdirectory() to the path you pulled this git repository to.  There's nothing else you need to do at all; every dependency gets pulled from their respective git repositories automatically.  You just need to expect the disk usage.
 
-Set your CMake options as necessary.  This is mostly in regards to `RAYLIB_DISPLAY` and `RAYLIB_BOARD` as options.
+Set your CMake options as necessary.  This is mostly in regards to `RAYLIB_DISPLAY` and `RAYLIB_BOARD` as options.  It's recommended to do this via the CMake GUI.
 
-All of your code should remain like you're using Raylib.  You may add other pico libraries as you need but support for those hardware pins is not guaranteed.
+All of your code should remain like you're using Raylib on any other machine.  You may add other pico libraries as you need but support for those hardware pins is not guaranteed.
 
 A new header called `pico_display.h` should also be ready.  In here you can control the RGBLED and display backlight.  You can check what's available by looking in the `optionals` folder then selecting the display you chose in the CMake options.
 
@@ -16,9 +16,11 @@ A new header called `pico_display.h` should also be ready.  In here you can cont
 This is in regards to adding a new platform such as a pico board or a display output to this system.
 
 ## Adding a different Pico 2 Board.
-Please note only RP2350 is supported by this repository, so only Pico 2 boards are possible.
+Please note only RP2350 is supported by this repository, so only Pico 2 boards are possible.  Pico 1 support will be researched in the future but it's likely useless since Raylib is depth-buffer heavy.
 
-Pico board changes are fairly simple, usually only required to be committed as CMakeLists.txt changes.  Add your board as an enum option in the `RAYLIB_BOARD` option, then in the if-else tree set `PICO_BOARD` to the correct header from the Pico SDK.
+Pico board additions are fairly simple, usually only required to be committed as CMakeLists.txt changes.  Add your board as an enum option in the `RAYLIB_BOARD` option, then in the if-else tree set `PICO_BOARD` to the correct header from the Pico SDK.  
+
+You will also want to do so again under pico_raylib's compiler definitions because you need to set the PSRAM pin to the one your board uses.  Otherwise the chip won't be selected and memory heavy apps will fail to allocate RAM.
 
 ## Adding a new display out.
 This is much more complex.  Use `optionals/pimoroni_display_pack_28` as an example.

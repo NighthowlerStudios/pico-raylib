@@ -11,7 +11,6 @@ set(CMAKE_BUILD_TYPE Release)
 find_package(Git REQUIRED)
 
 include(CMakeDependentOption)
-include(raylib/cmake/EnumOption.cmake)
 
 set(BUILD_SHARED_LIBS OFF)
 
@@ -21,6 +20,9 @@ if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/pico-sdk/CMakeLists.txt")
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     COMMAND_ERROR_IS_FATAL ANY)
 endif()
+
+# Raylib has some helpers for us.  
+include(raylib/cmake/EnumOption.cmake)
 
 if (NOT DEFINED PICO_SDK_PATH)
     set(PICO_SDK_PATH "${CMAKE_CURRENT_LIST_DIR}/pico-sdk")
@@ -124,8 +126,13 @@ set(raylib_defs
     SW_COLOR_BUFFER_BITS=16
     SW_DEPTH_BUFFER_BITS=16
     SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
-    SFE_RP2350_XIP_CSI_PIN=PIMORONI_PICO_PLUS2_PSRAM_CS_PIN
 )
+
+if ((RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2") OR (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2_W"))
+        list(APPEND raylib_defs 
+            SFE_RP2350_XIP_CSI_PIN=PIMORONI_PICO_PLUS2_PSRAM_CS_PIN
+        )
+endif()
 
 # TODO
 # Utilize the enum found in pico_display.h
