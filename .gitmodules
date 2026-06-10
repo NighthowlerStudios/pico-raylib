@@ -10,3 +10,6 @@
 [submodule "sparkfun-pico"]
 	path = sparkfun-pico
 	url = https://github.com/NighthowlerStudios/sparkfun-pico
+[submodule "pico-extras"]
+	path = pico-extras
+	url = https://github.com/RaspberryPi/pico-extras
