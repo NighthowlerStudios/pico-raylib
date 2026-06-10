@@ -84,11 +84,11 @@ cmake_dependent_option(
 
 # The following remain off because VGA and DVI need a carefully timed core to bitbang.
 cmake_dependent_option(
-    SINGLE_CORE
-    "Use the same core Raylib uses to draw to the LCD.  Not compatible with VGA/DVI"
-    ON # The below is true, this option is now configurable
+    MULTICORE
+    "Don't use the same core Raylib uses to draw to the LCD.  Required with VGA/DVI"
+    OFF # The below is true, this option is now configurable
     [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo" OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_DVI_Breakout"]]
-    OFF # The above is false, this option is now locked to OFF
+    ON # The above is false, this option is now locked to ON
 )
 
 include(pico-sdk/pico_sdk_init.cmake)
@@ -158,6 +158,12 @@ endif()
 if (USE_RGB_LED_AS_DEBUG)
     list(APPEND raylib_defs 
         USE_RGB_LED_AS_DEBUG
+    )
+endif()
+
+if (MULTICORE)
+    list(APPEND raylib_defs
+        MULTICORE
     )
 endif()
 

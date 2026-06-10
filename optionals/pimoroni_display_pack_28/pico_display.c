@@ -216,17 +216,19 @@ void Core1FlipBuffer(void)
 {
     while(true)
     {
+        // Wait until Raylib has reached FlipBuffer.
         SHOW_LED_RLSW_DRAWING;
         while (!flipCompleted);
         SHOW_LED_LCD_DRAWING;
 
+        // Don't let raylib do Flip again until this core is done.
         mutex_enter_blocking(&frameBufferMutex);
 
-        // Acknowledge.
+        // Reset "semaphore"
         flipCompleted = false;
 
-        // Command handles the parsing of the data.  We can't block it nicely, so we use that boolean.
-        //printf("Current Buffer Pointer: %p\n", (void*)currentBuffer);
+        // Command handles the parsing of the data.
+        printf("Current Buffer Pointer: %p\n", (void*)currentBuffer);
         command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
 
         mutex_exit(&frameBufferMutex);
@@ -412,8 +414,6 @@ void InitDisplay(void)
 
     SHOW_LED_RLSW_DRAWING;
 #endif
-
-   
 
     printf("[DEVICE] Device ready.\n");
 }
