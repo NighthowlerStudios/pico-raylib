@@ -369,7 +369,7 @@ int main(void)
         }
 
         // Draw
-        double currentTime = GetTime();
+        //double currentTime = GetTime();
 
         BeginDrawing();
             switch (currentMode)
@@ -388,10 +388,11 @@ int main(void)
             }
 
             //printf("[EXAMPLE] Draw time: %f\n", GetTime() - currentTime);
-            currentTime = GetTime();
+            //currentTime = GetTime();
             
         EndDrawing();
 
+        //Only applicable to single core.
         //printf("[EXAMPLE] SPI flip time: %f\n", GetTime() - currentTime);
     }
 

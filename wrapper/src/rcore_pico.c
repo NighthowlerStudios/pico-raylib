@@ -694,10 +694,22 @@ int InitPlatform(void)
     return 0;
 }
 
+#include "hardware/xosc.h"
+#include "pico/sleep.h"
+#include "hardware/clocks.h"
+
 // Close platform
 void ClosePlatform(void)
 {
     CleanupDisplay();
+
+    sleep_run_from_xosc();
+
+    // No way to wake from sleep.
+    while (true) 
+    {
+        tight_loop_contents();
+    }
 }
 
 // EOF

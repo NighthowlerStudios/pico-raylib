@@ -205,33 +205,35 @@ void SetBacklight(uint8_t brightness) {
 #include "pico/mutex.h"
 #include "pico/multicore.h"
 
-int currentWidth = 320;
-int currentHeight = 240;
 static mutex_t frameBufferMutex;
-uint16_t* currentBuffer = NULL;
-// Using this as a flag to indicate whether the Raylib buffer has been swapped.
-bool flipCompleted = false;
 
 void Core1FlipBuffer(void)
 {
     while(true)
     {
-        // Wait until Raylib has reached FlipBuffer.
+        float currentTime = GetTime();
         SHOW_LED_RLSW_DRAWING;
-        while (!flipCompleted);
+
+        uintptr_t buffer_ptr = (uintptr_t)multicore_fifo_pop_blocking();
+        uint32_t dimensions = multicore_fifo_pop_blocking();
+        int currentWidth = (int)(dimensions >> 16);
+        int currentHeight = (int)(dimensions & 0xffff);
+        uint16_t* currentBuffer = (uint16_t*)buffer_ptr;
+
+        printf("[DEVICE] Current Buffer Pointer: %x\n", currentBuffer);
+
         SHOW_LED_LCD_DRAWING;
 
-        // Don't let raylib do Flip again until this core is done.
+        // Core 1 owns the mutex while transferring the framebuffer over SPI.
         mutex_enter_blocking(&frameBufferMutex);
 
-        // Reset "semaphore"
-        flipCompleted = false;
-
-        // Command handles the parsing of the data.
-        printf("Current Buffer Pointer: %p\n", (void*)currentBuffer);
         command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
+        //printf("[DEVICE] SPI flip time: %f\n", GetTime() - currentTime);
 
         mutex_exit(&frameBufferMutex);
+
+        // Show green until Raylib is done drawing a frame.
+        SHOW_LED_NO_FRAME_COMMANDED;
     }
 }
 
@@ -240,11 +242,11 @@ void Core1FlipBuffer(void)
 // And now expose this functionality to Raylib.
 void InitDisplay(void)
 {
-#ifdef USE_USB_CONSOLE_OUT
-    stdio_init_all();
-
     InitRGBLED();
 
+    stdio_init_all();
+
+#ifdef USE_USB_CONSOLE_OUT
     while (!stdio_usb_connected())
     {
         SHOW_LED_WAITING_FOR_USB;
@@ -420,15 +422,19 @@ void InitDisplay(void)
 
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
-    // Raylib is not allowed to continue until core 2 is done drawing the current buffer.
+    // Raylib must wait until Core 1 is done transferring the previous buffer.
 #ifdef MULTICORE
-    while (frameBufferMutex.owner != LOCK_INVALID_OWNER_ID);
-    
-    currentBuffer = buffer;
-    currentWidth = screenWidth;
-    currentHeight = screenHeight;
-    // On start, this will force Core 1 to wait until first flip, prevents null pointer.
-    flipCompleted = true;
+    //printf("[DEVICE] Frame buffer flipped.  Waiting until Core 1 is done using SPI...\n");
+    // We can't just block mutex above launch_core1, because we would deadlock up there at the other enter_blocking
+    mutex_enter_blocking(&frameBufferMutex);
+    //printf("[DEVICE] Telling Core 1 about the new pointer.\n");
+
+    uintptr_t buffer_ptr = (uintptr_t)buffer;
+    uint32_t dimensions = ((uint32_t)screenWidth << 16) | (uint32_t)screenHeight;
+    multicore_fifo_push_blocking(buffer_ptr);
+    multicore_fifo_push_blocking(dimensions);
+
+    mutex_exit(&frameBufferMutex);
 #else
 // If this is flashing, that's good!  It means the CPU isn't locked up.
     SHOW_LED_LCD_DRAWING;
@@ -438,15 +444,16 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
     command(RAMWR, screenWidth * screenHeight * sizeof(uint16_t), (const char*)buffer);
     SHOW_LED_RLSW_DRAWING;
 #endif
-
-
 }
 
 void CleanupDisplay(void)
 {
     // Don't unallocate dma's until the current frame is done drawing.
 #ifdef MULTICORE
-    while (frameBufferMutex.owner != LOCK_INVALID_OWNER_ID);
+    #warning "You are currently compiling in multicore.  This is experimental!"
+    mutex_enter_blocking(&frameBufferMutex);
+    // No-op Core 1.
+    multicore_reset_core1();
 #endif
     if(dma_channel_is_claimed(st_dma)) {
         dma_channel_abort(st_dma);

@@ -93,6 +93,8 @@ cmake_dependent_option(
 
 include(pico-sdk/pico_sdk_init.cmake)
 
+include(pico-extras/external/pico_extras_import.cmake)
+
 # https://github.com/raysan5/raylib/blob/34b06ca5871d7f6fa39e9e37f7f8f453db9f6cee/CMakeLists.txt#L5
 # Avoid excessive expansion of variables in conditionals. In particular, if
 # "PLATFORM" is "DRM" then:
@@ -223,8 +225,7 @@ set(pico_libraries
     # Hardware accelerate float and double.
     pico_float
     pico_double
-    pico_stdio_usb
-    pico_rand
+    pico_rand # Init random seed, for now.
 
     # Replace default allocators with PSRAM ones.
     sparkfun_pico
@@ -235,12 +236,26 @@ set(pico_libraries
     hardware_spi
     hardware_clocks
     hardware_vreg
+    hardware_sleep #pico-extras
+    hardware_sleep_headers #pico-extras
 )
 
 if (MULTICORE)
     list(APPEND pico_libraries
         pico_multicore
+        pico_sync
     )
+endif()
+
+if (USE_USB_CONSOLE_OUT)
+    list(APPEND pico_libraries
+        pico_stdio_usb
+    )
+endif()
+
+if (USE_USB_AS_DEBUG)
+    pico_enable_stdio_usb(pico_raylib 1)
+    pico_enable_stdio_uart(pico_raylib 0)
 endif()
 
 # Unfortunately we can't use most third party's drivers as they're usually implemented with pico_graphics.

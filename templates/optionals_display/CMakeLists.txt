@@ -1,15 +1,20 @@
-add_library(pimoroni_display_pack_28 INTERFACE)
+add_library(optionals_display INTERFACE)
 
-target_sources(pimoroni_display_pack_28 INTERFACE
+target_sources(optionals_display INTERFACE
     "pico_display.c"
 )
 
-target_include_directories(pimoroni_display_pack_28 INTERFACE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(optionals_display INTERFACE ${CMAKE_CURRENT_LIST_DIR})
 
-target_link_libraries(pimoroni_display_pack_28 INTERFACE
-    pico_stdlib
-    pico_float
-    pico_double
+# pico-raylib already includes a lot.
+set(pico_libs 
+    pico_unique_id
 
-    hardware_dma
+    hardware_gpio
+    hardware_pio #Needed to sync the peri clk
+    hardware_pwm
+)
+
+target_link_libraries(optionals_display INTERFACE
+    ${pico_libs}
 )
