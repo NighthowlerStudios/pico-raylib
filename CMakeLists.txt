@@ -237,6 +237,12 @@ set(pico_libraries
     hardware_vreg
 )
 
+if (MULTICORE)
+    list(APPEND pico_libraries
+        pico_multicore
+    )
+endif()
+
 # Unfortunately we can't use most third party's drivers as they're usually implemented with pico_graphics.
 # pico_graphics allocates its own framebuffer, wasting SRAM.
 # So we need to implement our own drivers.
