@@ -65,6 +65,7 @@ void simple_shapes(void)
                         (Vector2){ screenWidth/4.0f*3.0f + 10.0f, 115.0f }, DARKBLUE);
 
     // Polygon shapes and lines
+    //printf("[EXAMPLE] Rotation: %f\n", rotation);
     DrawPoly((Vector2){ screenWidth/4.0f*3, 175 }, 6, 40, rotation, BROWN);
     DrawPolyLines((Vector2){ screenWidth/4.0f*3, 175 }, 6, 45, rotation, BROWN);
     DrawPolyLinesEx((Vector2){ screenWidth/4.0f*3, 175 }, 6, 42, rotation, 6, BEIGE);
@@ -77,6 +78,7 @@ void simple_shapes(void)
 void simple_shapes_update(void)
 {
     // Delta timed, not using GetTime().
+    if (GetFrameTime() == 0.0f) return;
     rotation += 0.2f * 60.0f / GetFrameTime();
 }
 
@@ -228,7 +230,7 @@ float scale = 0.0f;
 void waving_cubes(void)
 {
     // Specify the amount of blocks in each direction
-    const int numBlocks = 15;
+    const int numBlocks = 5;
 
     ClearBackground(RAYWHITE);
 
@@ -347,7 +349,7 @@ int main(void)
 
             switchLock = true;
         }
-        else
+        else if (!IsKeyPressed(KEY_X))
         {
             switchLock = false;
         }
