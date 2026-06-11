@@ -166,6 +166,7 @@ endif()
 if (MULTICORE)
     list(APPEND raylib_defs
         MULTICORE
+        RLSW_BACKBUFFER
     )
 endif()
 

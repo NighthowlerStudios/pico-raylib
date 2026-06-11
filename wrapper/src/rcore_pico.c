@@ -525,6 +525,9 @@ void DisableCursor(void)
 
 // Get it by force from rlsw.h at link time.
 extern void* swGetColorBuffer(int* width, int* height);
+#ifdef MULTICORE
+extern void swSwapColorBuffers();
+#endif
 
 // Swap back buffer with front buffer (screen drawing)
 void SwapScreenBuffer(void)
@@ -538,6 +541,9 @@ void SwapScreenBuffer(void)
         return;
     }
 
+#ifdef MULTICORE
+    swSwapColorBuffers();
+#endif
     FlipBuffer(swFramebuffer, swWidth, swHeight);
 }
 

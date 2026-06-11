@@ -220,7 +220,7 @@ void Core1FlipBuffer(void)
         int currentHeight = (int)(dimensions & 0xffff);
         uint16_t* currentBuffer = (uint16_t*)buffer_ptr;
 
-        printf("[DEVICE] Current Buffer Pointer: %x\n", currentBuffer);
+        //printf("[DEVICE] Current Buffer Pointer: %x\n", currentBuffer);
 
         SHOW_LED_LCD_DRAWING;
 
@@ -450,7 +450,7 @@ void CleanupDisplay(void)
 {
     // Don't unallocate dma's until the current frame is done drawing.
 #ifdef MULTICORE
-    #warning "You are currently compiling in multicore.  This is experimental!"
+    #warning "You are currently compiling in multicore.  On this size of screen, the depth buffer will enter PSRAM space and slow down the system."
     mutex_enter_blocking(&frameBufferMutex);
     // No-op Core 1.
     multicore_reset_core1();
