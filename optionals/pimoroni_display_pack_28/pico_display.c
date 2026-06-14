@@ -211,7 +211,7 @@ void Core1FlipBuffer(void)
 {
     while(true)
     {
-        float currentTime = GetTime();
+        //float currentTime = GetTime();
         SHOW_LED_RLSW_DRAWING;
 
         uintptr_t buffer_ptr = (uintptr_t)multicore_fifo_pop_blocking();
@@ -227,8 +227,13 @@ void Core1FlipBuffer(void)
         // Core 1 owns the mutex while transferring the framebuffer over SPI.
         mutex_enter_blocking(&frameBufferMutex);
 
+        // Only benchmark the actual communication time, not the time waiting for Core 0.
+        // This is pretty much a fixed number.  
+        // On a 250mhz core overclock, spi periclock totals to about 0.023380 seconds.  Gives us a theoretical ceiling of 43 fps.
+        // However on the original 150mhz core overclock, spi periclock gets us about 0.19870 seconds.  Gives us a theoretical ceiling of 50 fps.
+        //float currentTime = GetTime();
         command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
-        //printf("[DEVICE] SPI flip time: %f\n", GetTime() - currentTime);
+        //printf("[DEVICE] SPI output time: %f\n", GetTime() - currentTime);
 
         mutex_exit(&frameBufferMutex);
 

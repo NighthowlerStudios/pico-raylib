@@ -218,9 +218,6 @@ target_include_directories(pico_raylib INTERFACE
     "raylib/src/external"
 )
 
-pico_enable_stdio_usb(pico_raylib 1)
-pico_enable_stdio_uart(pico_raylib 0)
-
 set(pico_libraries
     pico_stdlib
     # Hardware accelerate float and double.
@@ -252,9 +249,7 @@ if (USE_USB_CONSOLE_OUT)
     list(APPEND pico_libraries
         pico_stdio_usb
     )
-endif()
 
-if (USE_USB_AS_DEBUG)
     pico_enable_stdio_usb(pico_raylib 1)
     pico_enable_stdio_uart(pico_raylib 0)
 endif()
@@ -302,7 +297,9 @@ if (BUILD_EXAMPLE)
     
     add_executable(example "example/example.c")
 
-    target_link_libraries(example pico_raylib)
+    target_link_libraries(example 
+        pico_raylib
+    )
 
     pico_add_extra_outputs(example)
 endif()

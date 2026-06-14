@@ -95,7 +95,9 @@ int bunniesCount = 0;           // Bunnies counter
 bool paused = false;
 Texture2D texBunny;  // Doesn't contain the data.  RLSW will.
 
-uint16_t bitmap_raybunny [] = {
+#include "pico/platform.h"
+
+uint16_t __in_flash() bitmap_raybunny [] = {
 	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 
 	0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
 	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xffff, 0xffff, 0x8430, 
@@ -289,6 +291,7 @@ void waving_cubes_update(void)
 
 #include "hardware/vreg.h"
 #include "hardware/clocks.h"
+#include "sfe_pico.h"
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -299,7 +302,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
     // TODO: Support portrait windowing.
 
-    // Lost the silicon lottery?  Remove these.
+    // Ready to void your warranty?  Uncomment these.
     // We use these numbers to show competition with the ESP32, which has a 240MHz clock.
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     // This must be divisible by 75 mhz but in a ratio divisible by 2, otherwise an lcd spi communication will divide badly!
@@ -310,6 +313,8 @@ int main(void)
     // Note: to allocate this to SRAM, make sure InitWindow is first before all other allocations and that your stack is rather small!
     // For larger screens, it'll go to PSRAM instead.
     InitWindow(screenWidth, screenHeight, "pico raylib example");
+
+    printf("[EXAMPLE] Total allocated after RLSW init: %d bytes\n", sfe_mem_used());
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
@@ -333,10 +338,13 @@ int main(void)
 
     bool switchLock = false;
 
+    printf("[EXAMPLE] Total allocated after all assets init: %d bytes\n", sfe_mem_used());
+
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
         time = GetTime();
+        //double currentTime = GetTime();
 
         if (IsKeyPressed(KEY_X) && !switchLock)
         {
@@ -370,8 +378,11 @@ int main(void)
                 break;
         }
 
+        // Still useful even though most examples in here do very little maths.
+        //printf("[EXAMPLE] Update time: %f\n", GetTime() - currentTime);
+
         // Draw
-        //double currentTime = GetTime();
+        //currentTime = GetTime();
 
         BeginDrawing();
             switch (currentMode)
@@ -389,12 +400,14 @@ int main(void)
                     break;
             }
 
+            // The most important benchmark for our hardware acceleration optimizations.
             //printf("[EXAMPLE] Draw time: %f\n", GetTime() - currentTime);
             //currentTime = GetTime();
             
         EndDrawing();
 
-        //Only applicable to single core.
+        //Only really applicable to single core.
+        //Otherwise this shows how much time it takes for the system to hand over the pointer to Core 1.
         //printf("[EXAMPLE] SPI flip time: %f\n", GetTime() - currentTime);
     }
 
