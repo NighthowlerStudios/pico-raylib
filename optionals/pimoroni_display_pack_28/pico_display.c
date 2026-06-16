@@ -411,7 +411,7 @@ void InitDisplay(void)
     
     // Create the mutex and initialize Core 2.
 #ifdef MULTICORE
-    printf("[DEVICE] Setting up renderer core on Core 2 (1)...\n");
+    printf("[DEVICE] [WARNING] LCD SPI is set to use Core 1 instead of 0, but on this system, the depth buffer will end up in PSRAM.\n");
 
     mutex_init(&frameBufferMutex);
     multicore_reset_core1();
@@ -455,7 +455,6 @@ void CleanupDisplay(void)
 {
     // Don't unallocate dma's until the current frame is done drawing.
 #ifdef MULTICORE
-    #warning "You are currently compiling in multicore.  On this size of screen, the depth buffer will enter PSRAM space and slow down the system."
     mutex_enter_blocking(&frameBufferMutex);
     // No-op Core 1.
     multicore_reset_core1();

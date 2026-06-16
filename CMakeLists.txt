@@ -82,12 +82,13 @@ cmake_dependent_option(
     ON # The above is false, this option is now locked to ON
 )
 
-# The following remain off because VGA and DVI need a carefully timed core to bitbang.
+# The following remain ON because VGA and DVI need a carefully timed core to bit-bang.
 cmake_dependent_option(
     MULTICORE
     "Don't use the same core Raylib uses to draw to the LCD.  Required with VGA/DVI"
     OFF # The below is true, this option is now configurable
-    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo" OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_DVI_Breakout"]]
+    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo" 
+    OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_DVI_Breakout"]]
     ON # The above is false, this option is now locked to ON
 )
 

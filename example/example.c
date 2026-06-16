@@ -79,7 +79,8 @@ void simple_shapes_update(void)
 {
     // Delta timed, not using GetTime().
     if (GetFrameTime() == 0.0f) return;
-    rotation += 0.2f * 60.0f / GetFrameTime();
+    // 60 degrees per second.
+    rotation += 60.0f * GetFrameTime();
 }
 
 #define MAX_BUNNIES 800 // Don't have much stack space on embedded.
