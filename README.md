@@ -37,11 +37,11 @@ If need be this section may be extended in the future.
 
 # TODO Checklist
 
-- [ ] Create a double buffer, then put the SPI communication onto Core 2, without copying the previous buffer (rlsw needs improvement)
+- [x] Create a double buffer, then put the SPI communication onto Core 2, without copying the previous buffer (rlsw needs improvement)
 - [ ] Get more examples to compile
 - [ ] Implement Pimoroni VGA Demo
 - [ ] Implement Pimoroni DVI Demo
 - [ ] Implement SD card usage and file system via VGA Demo
 - [ ] Implement audio over the Aux Jack on VGA Demo
-- [ ] Accelerate matrix mathematics with the DSP
 - [ ] Investigate and accelerate triangle span drawing using the rp2350 hardware interpolator
+- [ ] Accelerate matrix mathematics with the ARM provided CMSIS-DSP library to optimize the assembly
