@@ -35,13 +35,9 @@ Then, go through both the header and the c file to implement all of the drivers 
 Only C99 code is allowed (I'm fully aware the Pico SDK uses some C++ and ends up building to CXX by force, but let's keep it standard.)
 If need be this section may be extended in the future.
 
-# TODO Checklist
+# Hardware Support TODO Checklist
 
-- [x] Create a double buffer, then put the SPI communication onto Core 2, without copying the previous buffer (rlsw needs improvement)
-- [ ] Get more examples to compile
-- [ ] Implement Pimoroni VGA Demo
-- [ ] Implement Pimoroni DVI Demo
-- [ ] Implement SD card usage and file system via VGA Demo
-- [ ] Implement audio over the Aux Jack on VGA Demo
-- [ ] Investigate and accelerate triangle span drawing using the rp2350 hardware interpolator
-- [ ] Accelerate matrix mathematics with the ARM provided CMSIS-DSP library to optimize the assembly
+- [ ] Pimoroni VGA Demo
+- [ ] Pimoroni DVI Demo
+- [ ] Pimoroni Display 1.14
+- [ ] Waveshare Pico LCD 1.3
