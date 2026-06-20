@@ -320,9 +320,10 @@ void SetWindowMinSize(int width, int height)
 
     GetMinimumResolution(&newWidth, &newHeight);
 
-    if (width == newWidth && height == newHeight)
+    // TRACELOG might not be ready by then
+    if (width != newWidth && height != newHeight)
     {
-        TRACELOG(LOG_WARNING, "SetWindowMinSize() was clamped back to (", newWidth, ",", newHeight, ")");
+        printf("[DEVICE] [WARNING] SetWindowMinSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
     }
 
     CORE.Window.screenMin.width = newWidth;
@@ -338,9 +339,10 @@ void SetWindowMaxSize(int width, int height)
     
     GetMaximumResolution(&newWidth, &newHeight);
 
-    if (width == newWidth && height == newHeight)
+    // TRACELOG might not be ready by then.
+    if (width != newWidth && height != newHeight)
     {
-        TRACELOG(LOG_WARNING, "SetWindowMaxSize() was clamped back to (", newWidth, ",", newHeight, ")");
+        printf("[DEVICE] [WARNING] SetWindowMaxSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
     }
 
     CORE.Window.screenMax.width = newWidth;
@@ -356,14 +358,14 @@ void SetWindowSize(int width, int height)
     newWidth = clamp_int(newWidth, CORE.Window.screenMin.width, CORE.Window.screenMax.width);
     newHeight = clamp_int(newHeight, CORE.Window.screenMin.height, CORE.Window.screenMax.height);
 
-    if (width == newWidth && height == newHeight)
+    // TRACELOG might not be ready by then.
+    if (width != newWidth && height != newHeight)
     {
-        TRACELOG(LOG_WARNING, "SetWindowSize() was clamped back to (", newWidth, ",", newHeight, ")");
+        printf("[DEVICE] [WARNING] SetWindowSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
     }
 
     // TODO: actually reallocate all three buffers (depth, color, back color) to the new size.  This needs to be done inside of rlsw so the actual pixel arrays get modified.
     //SetupViewport(newWidth, newHeight);
-
 }
 
 // Set window opacity, value opacity is between 0.0 and 1.0
@@ -676,7 +678,14 @@ void PollInputEvents(void)
 // Initialize platform: graphics, inputs and more
 int InitPlatform(void)
 {
+    stdio_init_all();
+
     InitDisplay();
+
+    // We need to override the core resolutions, so that rcore.c sets the render res correctly before initializing RLSW.
+    SetWindowMinSize(0, 0);
+    SetWindowMaxSize(1366, 768); // Maximum amount of PSRAM usage.
+    SetWindowSize(CORE.Window.screen.width, CORE.Window.screen.height);
 
     // TODO: Check display, device and context activation
     //----------------------------------------------------------------------------

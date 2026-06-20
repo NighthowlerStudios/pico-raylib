@@ -249,9 +249,8 @@ void InitDisplay(void)
 {
     InitRGBLED();
 
-    stdio_init_all();
-
 #ifdef USE_USB_CONSOLE_OUT
+#ifdef USE_RGB_LED_AS_DEBUG
     while (!stdio_usb_connected())
     {
         SHOW_LED_WAITING_FOR_USB;
@@ -259,6 +258,7 @@ void InitDisplay(void)
         SHOW_NO_LED;
         sleep_ms(250);
     }
+#endif
 #endif
 
     SHOW_LED_INITIALIZING_ST7789;
