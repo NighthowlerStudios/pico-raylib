@@ -364,6 +364,9 @@ void SetWindowSize(int width, int height)
         printf("[DEVICE] [WARNING] SetWindowSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
     }
 
+    CORE.Window.screen.width = newWidth;
+    CORE.Window.screen.height = newHeight;
+
     // TODO: actually reallocate all three buffers (depth, color, back color) to the new size.  This needs to be done inside of rlsw so the actual pixel arrays get modified.
     //SetupViewport(newWidth, newHeight);
 }
