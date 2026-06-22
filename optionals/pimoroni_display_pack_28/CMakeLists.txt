@@ -13,6 +13,10 @@ set(pico_libs
     hardware_gpio
     hardware_pio #Needed to sync the peri clk
     hardware_pwm
+
+    st7789
+    rgbled
+    pio_button
 )
 
 target_link_libraries(pimoroni_display_pack_28 INTERFACE

@@ -3,7 +3,6 @@
 
 #include "pico_display.h"
 
-Orientation currentOrientation = DISPLAY_ORIENTATION;
 // Comparison table.
 PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST] = {
     { KEY_A, PICO_DISPLAY_BUTTON_A, false },

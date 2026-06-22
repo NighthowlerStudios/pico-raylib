@@ -132,9 +132,9 @@ set(raylib_defs
 )
 
 if ((RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2") OR (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2_W"))
-        list(APPEND raylib_defs 
-            SFE_RP2350_XIP_CSI_PIN=PIMORONI_PICO_PLUS2_PSRAM_CS_PIN
-        )
+    list(APPEND raylib_defs 
+        SFE_RP2350_XIP_CSI_PIN=PIMORONI_PICO_PLUS2_PSRAM_CS_PIN
+    )
 endif()
 
 # TODO
@@ -272,6 +272,8 @@ add_subdirectory("optionals/${raylib_display_lower}")
 list(APPEND pico_libraries
     "${raylib_display_lower}"
 )
+
+add_subdirectory(shared)
 
 target_link_libraries(pico_raylib INTERFACE
     ${pico_libraries}

@@ -1,0 +1,390 @@
+/*
+* A reimplementation of the ST7789 driver library by Pimoroni.
+* You can find the CPP version of this driver on https://github.com/pimoroni/pimoroni-pico/tree/main/drivers/st7789
+* MIT License
+
+* Copyright (c) 2021 Pimoroni Ltd, Nighthowler Studios (Colin James Wood)
+
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*/
+
+#include "st7789.h"
+
+#include <limits.h>
+#include <stdio.h>
+
+#include "pico/stdlib.h"
+#include "hardware/dma.h"
+#include "hardware/gpio.h"
+#include "hardware/pio.h"
+#include "hardware/pwm.h"
+#include "hardware/clocks.h"
+
+// Here's where we dissolved the st7789 driver into.
+// Please note that most of this is copy-pasted from Pimoroni-Pico.
+// Then it was translated over to C, because C++ had some libraries that are incompatible with C99.
+
+Orientation currentOrientation = DISPLAY_ORIENTATION;
+
+static const uint8_t PIN_UNUSED = CHAR_MAX; // Intentionally INT_MAX to avoid overflowing MicroPython's int type
+
+uint8_t maSPI_DEFAULT_DCtl;
+uint16_t caset[2] = {0, 0};
+uint16_t raset[2] = {0, 0};
+
+typedef enum MASPI_DEFAULT_DCTL {
+    ROW_ORDER   = 0b10000000,
+    COL_ORDER   = 0b01000000,
+    SWAP_XY     = 0b00100000,  // AKA "MV"
+    SCAN_ORDER  = 0b00010000,
+    RGB_BGR     = 0b00001000,
+    HORIZ_ORDER = 0b00000100
+} __attribute__ ((__packed__)) MASPI_DEFAULT_DCTL;
+
+typedef enum reg {
+    SWRESET   = 0x01,
+    TEOFF     = 0x34,
+    TEON      = 0x35,
+    MASPI_DEFAULT_DCTLREG = 0x36,
+    COLMOD    = 0x3A,
+    RAMCTRL   = 0xB0,
+    GCTRL     = 0xB7,
+    VCOMS     = 0xBB,
+    LCMCTRL   = 0xC0,
+    VDVVRHEN  = 0xC2,
+    VRHS      = 0xC3,
+    VDVS      = 0xC4,
+    FRCTRL2   = 0xC6,
+    PWCTRL1   = 0xD0,
+    PORCTRL   = 0xB2,
+    GMCTRP1   = 0xE0,
+    GMCTRN1   = 0xE1,
+    INVOFF    = 0x20,
+    SLPIN     = 0x10,
+    SLPOUT    = 0x11,
+    DISPON    = 0x29,
+    GAMSET    = 0x26,
+    DISPOFF   = 0x28,
+    RAMWR     = 0x2C,
+    INVON     = 0x21,
+    CASET     = 0x2A,
+    RASET     = 0x2B,
+    PWMFRSEL  = 0xCC
+} __attribute__ ((__packed__)) reg;
+
+#include "hardware/spi.h"
+
+// interface pins with our standard defaults where appropriate
+static spi_inst_t *spi = spi0;
+static uint8_t parallel_sm;
+static PIO parallel_pio;
+static uint8_t parallel_offset;
+static uint8_t st_dma;
+
+static uint8_t DC;
+static uint8_t CS;
+static uint8_t PWM;
+static uint8_t MOSI;
+static uint8_t SCK;
+
+// The ST7789 requires 16 ns between SPI rising edges.
+// 16 ns = 62,500,000 Hz
+// We are write only, so going past 62,500,000 is a safe overclock.
+static const uint32_t SPI_BAUD = 75000000;
+
+// Write to the SPI using the assigned DMA channel.
+void command(uint8_t commandChar, int len, const char* data) {
+    gpio_put(DC, 0); // command mode
+
+    gpio_put(CS, 0);
+    
+    spi_write_blocking(spi, &commandChar, 1);
+
+    if (data) {
+        gpio_put(DC, 1); // data mode
+        spi_write_blocking(spi, (const uint8_t*)data, len);
+    }
+
+    gpio_put(CS, 1);
+}
+
+// command but with a NULL set of data.
+void commandNoString(uint8_t commandChar) 
+{ 
+    command(commandChar, 0, NULL); 
+}
+
+void SendBufferST7789(int width, int height, const char* buffer)
+{
+        // Raylib must wait until Core 1 is done transferring the previous buffer.
+#ifdef MULTICORE
+    //printf("[DEVICE] Frame buffer flipped.  Waiting until Core 1 is done using SPI...\n");
+    // We can't just block mutex above launch_core1, because we would deadlock up there at the other enter_blocking
+    mutex_enter_blocking(&frameBufferMutex);
+    //printf("[DEVICE] Telling Core 1 about the new pointer.\n");
+
+    uintptr_t buffer_ptr = (uintptr_t)buffer;
+    uint32_t dimensions = ((uint32_t)screenWidth << 16) | (uint32_t)screenHeight;
+    multicore_fifo_push_blocking(buffer_ptr);
+    multicore_fifo_push_blocking(dimensions);
+
+    mutex_exit(&frameBufferMutex);
+#else
+    // If this is flashing, that's good!  It means the CPU isn't locked up.
+    
+    // Takes 0.01952 seconds on average, but draw time of raylib is quite high.  
+    // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
+    // Once we use core 1 this won't be too additive to frame time, but you'll be hard capped to 43 fps.
+    command(RAMWR, width * height * sizeof(uint16_t), buffer);
+    
+#endif
+}
+
+#ifdef MULTICORE
+
+// We use lazy scheduling in here because the framebuffer is read-only on core 2 anyway.
+#include "pico/mutex.h"
+#include "pico/multicore.h"
+
+static mutex_t frameBufferMutex;
+
+void Core1FlipBuffer(void)
+{
+    while(true)
+    {
+        //float currentTime = GetTime();
+
+        uintptr_t buffer_ptr = (uintptr_t)multicore_fifo_pop_blocking();
+        uint32_t dimensions = multicore_fifo_pop_blocking();
+        int currentWidth = (int)(dimensions >> 16);
+        int currentHeight = (int)(dimensions & 0xffff);
+        uint16_t* currentBuffer = (uint16_t*)buffer_ptr;
+
+        //printf("[DEVICE] Current Buffer Pointer: %x\n", currentBuffer);
+
+        // Core 1 owns the mutex while transferring the framebuffer over SPI.
+        mutex_enter_blocking(&frameBufferMutex);
+
+        // Only benchmark the actual communication time, not the time waiting for Core 0.
+        // This is pretty much a fixed number.  
+        // On a 250mhz core overclock, spi periclock totals to about 0.023380 seconds.  Gives us a theoretical ceiling of 43 fps.
+        // However on the original 150mhz core overclock, spi periclock gets us about 0.19870 seconds.  Gives us a theoretical ceiling of 50 fps.
+        //float currentTime = GetTime();
+        command(RAMWR, width * height * sizeof(uint16_t), buffer);
+        //printf("[DEVICE] SPI output time: %f\n", GetTime() - currentTime);
+
+        mutex_exit(&frameBufferMutex);
+
+        // Show green until Raylib is done drawing a frame.
+        SHOW_LED_NO_FRAME_COMMANDED;
+    }
+}
+
+#endif
+
+#include <math.h>
+
+void SetBacklight(uint8_t brightness) {
+    // gamma correct the provided 0-255 brightness value onto a
+    // 0-65535 range for the pwm counter
+    float gamma = 2.8;
+    uint16_t value = (uint16_t)(pow((float)(brightness) / 255.0f, gamma) * 65535.0f + 0.5f);
+    pwm_set_gpio_level(PWM, value);
+}
+
+void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs)
+{
+    DC = dc;
+    SCK = sck;
+    MOSI = mosi;
+    PWM = pwm;
+    CS = cs;
+    // Force the peripheral clock to be half the CPU. This will also force SPI to be as high as it can go.
+    // Consequently, we prevent overclocks past 250mhz.
+    uint32_t freq = clock_get_hz(clk_sys);
+    clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, freq, freq);
+
+    sleep_ms(100);
+
+    // First construct the pin information.
+    // configure spi interface and pins
+    spi_init(spi, SPI_BAUD);
+
+    gpio_set_function(SCK, GPIO_FUNC_SPI);
+    gpio_set_function(MOSI, GPIO_FUNC_SPI);
+
+    printf("[ST7789] Claiming DMA Channel for LCD SPI.\n");
+
+    st_dma = dma_claim_unused_channel(true);
+    dma_channel_config config = dma_channel_get_default_config(st_dma);
+    channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
+    channel_config_set_bswap(&config, false);
+    channel_config_set_dreq(&config, spi_get_dreq(spi, true));
+    dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
+
+    gpio_set_function(DC, GPIO_FUNC_SIO);
+    gpio_set_dir(DC, GPIO_OUT);
+
+    gpio_set_function(CS, GPIO_FUNC_SIO);
+    gpio_set_dir(CS, GPIO_OUT);
+
+    printf("[ST7789] Backlight off (PWM init)...\n");
+
+    // if a backlight pin is provided then set it up for
+    // pwm control
+    if(PWM != PIN_UNUSED) {
+        pwm_config cfg = pwm_get_default_config();
+        pwm_set_wrap(pwm_gpio_to_slice_num(PWM), 65535);
+        pwm_init(pwm_gpio_to_slice_num(PWM), &cfg, true);
+        gpio_set_function(PWM, GPIO_FUNC_PWM);
+        SetBacklight(0); // Turn backlight off initially to avoid nasty surprises
+    }
+
+    // Then the full init
+
+    // Common init.
+    printf("[ST7789] Boot the ST7789\n");
+
+    commandNoString(SWRESET);
+
+    commandNoString(TEON);  // enable frame sync signal if used
+    command(COLMOD,    1, "\x05");  // 16 bits per pixel
+
+    const char porctrl_bytes[] = {0x0c, 0x0c, 0x00, 0x33, 0x33};
+    command(PORCTRL, 5, &porctrl_bytes);
+    command(LCMCTRL, 1, "\x2c");
+    command(VDVVRHEN, 1, "\x01");
+    command(VRHS, 1, "\x12");
+    command(VDVS, 1, "\x20");
+    const char pwctrl_bytes[] = {0xa4, 0xa1};
+    command(PWCTRL1, 2, &pwctrl_bytes);
+    command(FRCTRL2, 1, "\x0f");
+
+    // As noted in https://github.com/pimoroni/pimoroni-pico/issues/1040
+    // this is required to avoid a weird light grey banding issue with low brightness green.
+    // The banding is not visible without tweaking gamma settings (GMCTRP1 & GMCTRN1) but
+    // it makes sense to fix it anyway.
+    const char ramctrl_bytes[] = { 0x00, 0xc0 };
+    command(RAMCTRL, 2, &ramctrl_bytes);
+
+    // Pico Display 2.8 specific.
+    command(GCTRL, 1, "\x35");
+    command(VCOMS, 1, "\x1f");
+    const char gmctrp1_bytes[] = {0xd0, 0x08, 0x11, 0x08, 0x0C, 0x15, 0x39, 0x33, 0x50, 0x36, 0x13, 0x14, 0x29, 0x2d };
+    const char gmctrn1_bytes[] = {0xd0, 0x08, 0x10, 0x08, 0x06, 0x06, 0x39, 0x44, 0x51, 0x0b, 0x16, 0x14, 0x2f, 0x31 };
+    command(GMCTRP1, 14, &gmctrp1_bytes);
+    command(GMCTRN1, 14, &gmctrn1_bytes);
+
+    commandNoString(INVON);   // set inversion mode
+    commandNoString(SLPOUT);  // leave sleep mode
+    commandNoString(DISPON);  // turn display on
+
+    sleep_ms(100);
+
+    // Setup the bus boundaries.
+    // TODO: Actually make this configurable.
+    currentOrientation = LANDSCAPE;
+
+    int currentWidth = (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT) ? height : width;
+    int currentHeight = (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT) ? width : height;
+    
+    switch (currentOrientation)
+    {
+        // OpenGL draws the buffer from the bottom left as origin, instead of top left.  
+        // So instead of Top to Bottom, we need Bottom to Top.  But still remain Left to Right in all cases.
+        // Then, and only after that logic, rotate and reorder.
+        case PORTRAIT:
+            maSPI_DEFAULT_DCtl = ROW_ORDER;
+            break;
+        case INVERTED_LANDSCAPE:
+            maSPI_DEFAULT_DCtl = ROW_ORDER | COL_ORDER | SWAP_XY;
+            break;
+        case INVERTED_PORTRAIT:
+            maSPI_DEFAULT_DCtl = ROW_ORDER;
+            break;
+        default: // LANDSCAPE
+            maSPI_DEFAULT_DCtl = SWAP_XY;
+            break;
+    }
+
+    // Make sure to inherit a 90 degree rotation.
+    caset[0] = 0;
+    caset[1] = currentWidth - 1;
+    raset[0] = 0;
+    raset[1] = currentHeight - 1;
+
+    // Byte swap the 16bit rows/cols values
+    caset[0] = __builtin_bswap16(caset[0]);
+    caset[1] = __builtin_bswap16(caset[1]);
+    raset[0] = __builtin_bswap16(raset[0]);
+    raset[1] = __builtin_bswap16(raset[1]);
+
+    command(CASET,  4, (char *)caset);
+    command(RASET,  4, (char *)raset);
+    command(MASPI_DEFAULT_DCTLREG, 1, (char *)&maSPI_DEFAULT_DCtl);
+
+    printf("[ST7789] Ready for use.\n");
+
+    if(PWM != PIN_UNUSED) {
+        //update(); // Send the new buffer to the display to clear any previous content
+        sleep_ms(50); // Wait for the update to apply
+        SetBacklight(255); // Turn backlight on now surprises have passed
+    }
+
+    // Create the mutex and initialize Core 1.
+#ifdef MULTICORE
+    if (width * height > 240 * 240)
+    {
+        printf("[ST7789] [WARNING] LCD SPI is set to use Core 1 instead of 0, but on this display resolution, the depth buffer will likely end up in PSRAM.\n");
+    }
+
+    printf("[ST7789] Setting up Core 1 as SPI instead of Core 0...");
+
+    mutex_init(&frameBufferMutex);
+    multicore_reset_core1();
+    multicore_launch_core1(Core1FlipBuffer);
+#else
+    printf("[ST7789] [WARNING] LCD SPI is set to use the same core as Raylib.  Expect serious bottlenecks!\n");
+#endif
+}
+
+void CleanupST7789(void)
+{
+    // Don't unallocate dma's until the current frame is done drawing.
+#ifdef MULTICORE
+    mutex_enter_blocking(&frameBufferMutex);
+    // No-op Core 1.
+    multicore_reset_core1();
+#endif
+
+    if(dma_channel_is_claimed(st_dma)) {
+        dma_channel_abort(st_dma);
+        dma_channel_unclaim(st_dma);
+    }
+
+    spi_deinit(spi);
+
+    // Conserve power.
+    
+    SetBacklight(0);
+    commandNoString(DISPOFF);
+    commandNoString(SLPIN);
+
+    printf("[ST7789] Screen, SPI and DMA destroyed.");
+}

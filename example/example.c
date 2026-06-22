@@ -13,12 +13,18 @@
 *
 ********************************************************************************************/
 
+// Required for sleep and in-flash textures.
+#include "pico/stdlib.h" 
+
+// Overclocking and memory reporting.
+#include "hardware/vreg.h"
+#include "hardware/clocks.h"
+#include "sfe_pico.h"
+
 #include "raylib.h"
-#include "pico_display.h"
-#include "pico/stdlib.h"
 #include <stdint.h>
 #include <stddef.h>
-#include <stdlib.h> // Required for malloc.
+#include <malloc.h>
 #include <stdio.h>
 #include <math.h>
 
@@ -36,7 +42,7 @@ double time = 0.0;
 float rotation = 0.0f;
 DemoModes currentMode = SIMPLE_SHAPES;
 
-void simple_shapes(void)
+void simple_shapes_draw(void)
 {
     ClearBackground(RAYWHITE);
 
@@ -96,9 +102,7 @@ int bunniesCount = 0;           // Bunnies counter
 bool paused = false;
 Texture2D texBunny;  // Doesn't contain the data.  RLSW will.
 
-#include "pico/platform.h"
-
-uint16_t __in_flash() bitmap_raybunny [] = {
+uint16_t __in_flash() bitmapRaybunny [] = {
 	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 
 	0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 
 	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x8430, 0xffff, 0xffff, 0xd69a, 0xd69a, 0xffff, 0xffff, 0x8430, 
@@ -165,7 +169,7 @@ uint16_t __in_flash() bitmap_raybunny [] = {
 	0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0000, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff
 };
 
-void bunnymark(void)
+void bunnymark_draw(void)
 {
     ClearBackground(RAYWHITE);
 
@@ -230,7 +234,7 @@ void bunnymark_update(void)
 Camera3D camera = { 0 };
 float scale = 0.0f;
 
-void waving_cubes(void)
+void waving_cubes_draw(void)
 {
     // Specify the amount of blocks in each direction
     const int numBlocks = 5;
@@ -290,10 +294,6 @@ void waving_cubes_update(void)
     camera.position.z = (float)sin(cameraTime)*40.0f;
 }
 
-#include "hardware/vreg.h"
-#include "hardware/clocks.h"
-#include "sfe_pico.h"
-
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ int main(void)
     // Ready to void your warranty?  Uncomment these.
     // We use these numbers to show competition with the ESP32, which has a 240MHz clock.
     vreg_set_voltage(VREG_VOLTAGE_1_20);
-    // This must be divisible by 75 mhz but in a ratio divisible by 2, otherwise an lcd spi communication will divide badly!
+    // This clock was chosen as it prevents the SPI clock from dividing badly.
     set_sys_clock_khz(250000, true);
     sleep_ms(100);
 
@@ -321,7 +321,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
 
     Image imgBunny = {
-        .data = &bitmap_raybunny,
+        .data = &bitmapRaybunny,
         .width = 32,
         .height = 32,
         .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
@@ -389,13 +389,13 @@ int main(void)
             switch (currentMode)
             {
                 case SIMPLE_SHAPES:
-                    simple_shapes();
+                    simple_shapes_draw();
                     break;
                 case BUNNIES:
-                    bunnymark();
+                    bunnymark_draw();
                     break;
                 case WAVING_CUBES:
-                    waving_cubes();
+                    waving_cubes_draw();
                     break;
                 default:
                     break;

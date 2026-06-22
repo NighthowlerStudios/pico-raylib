@@ -311,6 +311,9 @@ void SetWindowMonitor(int monitor)
 // Since the device is expected to have PSRAM, we can let those outputs adjust their scale.
 // LCDs etcetera must cap to their hardware limits instead.
 
+// Overrides using pico_display.c the minimum resolution with a capper, if needed.
+extern void GetMinimumResolution(int* width, int* height);
+
 // Set window minimum dimensions (FLAG_WINDOW_RESIZABLE)
 void SetWindowMinSize(int width, int height)
 {
@@ -329,6 +332,9 @@ void SetWindowMinSize(int width, int height)
     CORE.Window.screenMin.width = newWidth;
     CORE.Window.screenMin.height = newHeight;
 }
+
+// Overrides using pico_display.c the maximum resolution with a capper, if needed.
+extern void GetMaximumResolution(int* width, int* height);
 
 // Set window maximum dimensions (FLAG_WINDOW_RESIZABLE)
 void SetWindowMaxSize(int width, int height)
@@ -447,6 +453,8 @@ int GetMonitorRefreshRate(int monitor)
     return 0;
 }
 
+extern const char* GetMonitorDeviceName(void);
+
 // Get the human-readable, UTF-8 encoded name of the selected monitor
 const char *GetMonitorName(int monitor)
 {
@@ -533,6 +541,9 @@ extern void* swGetColorBuffer(int* width, int* height);
 #ifdef MULTICORE
 extern void swSwapColorBuffers();
 #endif
+
+// In R5G6B5 format, transmit the buffer via pico_display.c.  Block raylib in here if we're waiting for Core 1 to finish.
+extern void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight);
 
 // Swap back buffer with front buffer (screen drawing)
 void SwapScreenBuffer(void)
@@ -622,6 +633,10 @@ const char *GetKeyName(int key)
     return "";
 }
 
+// Emulate keyboards in pico_display.c
+extern void PollInput(void);
+extern PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST];
+
 // Register all input events
 void PollInputEvents(void)
 {    
@@ -678,6 +693,12 @@ void PollInputEvents(void)
 // Module Internal Functions Definition
 //----------------------------------------------------------------------------------
 
+// Setup keyboard emulation via pico_display.c in here.
+extern void InitInput(void);
+
+// Initialise display drivers via pico_display.c
+extern void InitDisplay(void);
+
 // Initialize platform: graphics, inputs and more
 int InitPlatform(void)
 {
@@ -715,6 +736,9 @@ int InitPlatform(void)
 #include "hardware/xosc.h"
 #include "pico/sleep.h"
 #include "hardware/clocks.h"
+
+// Clean up the display driver via pico_display.c
+extern void CleanupDisplay(void);
 
 // Close platform
 void ClosePlatform(void)

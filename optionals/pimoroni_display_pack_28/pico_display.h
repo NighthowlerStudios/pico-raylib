@@ -3,63 +3,23 @@
 #ifndef PICO_DISPLAY_H
 #define PICO_DISPLAY_H
 
+// Keep visible for rcore_pico.c to see the extern dimensions
 #define NUM_BUTTONS_TO_TEST 4
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "raylib.h"
 
-inline const char* GetMonitorDeviceName() { return "Pimoroni Pico Display Pack 2.8\""; }
-
-static const int PICO_DISPLAY_WIDTH = 320;
-static const int PICO_DISPLAY_HEIGHT = 240;
-static const uint8_t PICO_DISPLAY_BUTTON_A = 12;
-static const uint8_t PICO_DISPLAY_BUTTON_B = 13;
-static const uint8_t PICO_DISPLAY_BUTTON_X = 14;
-static const uint8_t PICO_DISPLAY_BUTTON_Y = 15;
-static const uint8_t PICO_DISPLAY_LED_R = 26;
-static const uint8_t PICO_DISPLAY_LED_G = 27;
-static const uint8_t PICO_DISPLAY_LED_B = 28;
-
-typedef enum Orientation {
-    PORTRAIT = 0,
-    LANDSCAPE = 1,
-    INVERTED_PORTRAIT = 2,
-    INVERTED_LANDSCAPE = 3
-} Orientation;
-
-extern Orientation currentOrientation;
+// Expose these controls to the including library.
+#include "st7789.h"
+#include "rgbled.h"
+#include "pio_button.h"
 
 // Emulate buttons like keys on the keyboard.
 typedef struct PicoButton {
-    KeyboardKey key;
+    KeyboardKey key;  // TODO: Don't link the entire raylib header just for this
     uint8_t buttonPin;
     bool isDown;
 } PicoButton;
-
-extern PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST];
-
-// Overrides the minimum resolution with a capper, if needed.
-void GetMinimumResolution(int* width, int* height);
-// Overrides the maximum resolution with a capper, if needed.
-void GetMaximumResolution(int* width, int* height);
-
-// Emulate keyboards in here.
-void PollInput(void);
-// Setup keyboard emulation via GPIO in here.
-void InitInput(void);
-
-// Initialise display drivers.
-void InitDisplay(void);
-// In R5G6B5 format, transmit the buffer.  Block raylib in here if we're waiting for Core 2 to finish.
-void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight);
-
-// Clean up the display driver.
-void CleanupDisplay(void);
-
-// Change the brightness of the LCD manually.  It's full by default, so maybe some power could be saved here.
-void SetBacklight(uint8_t brightness);
-
-void InitRGBLED(void);
-void SetRGBLED(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness);
 
 #endif
