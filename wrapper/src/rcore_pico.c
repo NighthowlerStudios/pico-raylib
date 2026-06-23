@@ -560,6 +560,7 @@ void SwapScreenBuffer(void)
 #ifdef MULTICORE
     swSwapColorBuffers();
 #endif
+    //printf("Width: %i, Height: %i", swWidth, swHeight);
     FlipBuffer(swFramebuffer, swWidth, swHeight);
 }
 

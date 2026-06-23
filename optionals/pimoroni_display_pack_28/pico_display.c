@@ -39,11 +39,11 @@ int GetHardwareResolutionWidth()
 {
     if (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT)
     {
-        return PICO_DISPLAY_HEIGHT;
+        return PICO_DISPLAY_WIDTH;
     }   
     else
     {
-        return PICO_DISPLAY_WIDTH;
+        return PICO_DISPLAY_HEIGHT;
     }
 }
 
@@ -51,11 +51,11 @@ int GetHardwareResolutionHeight()
 {
     if (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT)
     {
-        return PICO_DISPLAY_WIDTH;
+        return PICO_DISPLAY_HEIGHT;
     }
     else
     {
-        return PICO_DISPLAY_HEIGHT;
+        return PICO_DISPLAY_WIDTH;
     }
 }
 
