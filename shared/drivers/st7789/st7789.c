@@ -130,30 +130,14 @@ void commandNoString(uint8_t commandChar)
     command(commandChar, 0, NULL); 
 }
 
-void SendBufferST7789(int width, int height, const char* buffer)
-{
-        // Raylib must wait until Core 1 is done transferring the previous buffer.
-#ifdef MULTICORE
-    //printf("[DEVICE] Frame buffer flipped.  Waiting until Core 1 is done using SPI...\n");
-    // We can't just block mutex above launch_core1, because we would deadlock up there at the other enter_blocking
-    mutex_enter_blocking(&frameBufferMutex);
-    //printf("[DEVICE] Telling Core 1 about the new pointer.\n");
+#include <math.h>
 
-    uintptr_t buffer_ptr = (uintptr_t)buffer;
-    uint32_t dimensions = ((uint32_t)screenWidth << 16) | (uint32_t)screenHeight;
-    multicore_fifo_push_blocking(buffer_ptr);
-    multicore_fifo_push_blocking(dimensions);
-
-    mutex_exit(&frameBufferMutex);
-#else
-    // If this is flashing, that's good!  It means the CPU isn't locked up.
-    
-    // Takes 0.01952 seconds on average, but draw time of raylib is quite high.  
-    // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
-    // Once we use core 1 this won't be too additive to frame time, but you'll be hard capped to 43 fps.
-    command(RAMWR, width * height * sizeof(uint16_t), buffer);
-    
-#endif
+void SetBacklight(uint8_t brightness) {
+    // gamma correct the provided 0-255 brightness value onto a
+    // 0-65535 range for the pwm counter
+    float gamma = 2.8;
+    uint16_t value = (uint16_t)(pow((float)(brightness) / 255.0f, gamma) * 65535.0f + 0.5f);
+    pwm_set_gpio_level(PWM, value);
 }
 
 #ifdef MULTICORE
@@ -186,27 +170,14 @@ void Core1FlipBuffer(void)
         // On a 250mhz core overclock, spi periclock totals to about 0.023380 seconds.  Gives us a theoretical ceiling of 43 fps.
         // However on the original 150mhz core overclock, spi periclock gets us about 0.19870 seconds.  Gives us a theoretical ceiling of 50 fps.
         //float currentTime = GetTime();
-        command(RAMWR, width * height * sizeof(uint16_t), buffer);
+        command(RAMWR, currentWidth * cirrentHeight * sizeof(uint16_t), (const char*)currentBuffer);
         //printf("[DEVICE] SPI output time: %f\n", GetTime() - currentTime);
 
         mutex_exit(&frameBufferMutex);
-
-        // Show green until Raylib is done drawing a frame.
-        SHOW_LED_NO_FRAME_COMMANDED;
     }
 }
 
 #endif
-
-#include <math.h>
-
-void SetBacklight(uint8_t brightness) {
-    // gamma correct the provided 0-255 brightness value onto a
-    // 0-65535 range for the pwm counter
-    float gamma = 2.8;
-    uint16_t value = (uint16_t)(pow((float)(brightness) / 255.0f, gamma) * 65535.0f + 0.5f);
-    pwm_set_gpio_level(PWM, value);
-}
 
 void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs)
 {
@@ -354,13 +325,39 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
         printf("[ST7789] [WARNING] LCD SPI is set to use Core 1 instead of 0, but on this display resolution, the depth buffer will likely end up in PSRAM.\n");
     }
 
-    printf("[ST7789] Setting up Core 1 as SPI instead of Core 0...");
+    printf("[ST7789] Setting up Core 1 as SPI instead of Core 0...\n");
 
     mutex_init(&frameBufferMutex);
     multicore_reset_core1();
     multicore_launch_core1(Core1FlipBuffer);
 #else
     printf("[ST7789] [WARNING] LCD SPI is set to use the same core as Raylib.  Expect serious bottlenecks!\n");
+#endif
+}
+
+void SendBufferST7789(int width, int height, const char* buffer)
+{
+        // Raylib must wait until Core 1 is done transferring the previous buffer.
+#ifdef MULTICORE
+    //printf("[DEVICE] Frame buffer flipped.  Waiting until Core 1 is done using SPI...\n");
+    // We can't just block mutex above launch_core1, because we would deadlock up there at the other enter_blocking
+    mutex_enter_blocking(&frameBufferMutex);
+    //printf("[DEVICE] Telling Core 1 about the new pointer.\n");
+
+    uintptr_t buffer_ptr = (uintptr_t)buffer;
+    uint32_t dimensions = ((uint32_t)width << 16) | (uint32_t)height;
+    multicore_fifo_push_blocking(buffer_ptr);
+    multicore_fifo_push_blocking(dimensions);
+
+    mutex_exit(&frameBufferMutex);
+#else
+    // If this is flashing, that's good!  It means the CPU isn't locked up.
+    
+    // Takes 0.01952 seconds on average, but draw time of raylib is quite high.  
+    // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
+    // Once we use core 1 this won't be too additive to frame time, but you'll be hard capped to 43 fps.
+    command(RAMWR, width * height * sizeof(uint16_t), buffer);
+    
 #endif
 }
 

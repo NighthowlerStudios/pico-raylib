@@ -704,12 +704,12 @@ int InitPlatform(void)
 {
     stdio_init_all();
 
-    InitDisplay();
-
     // We need to override the core resolutions, so that rcore.c sets the render res correctly before initializing RLSW.
     SetWindowMinSize(0, 0);
     SetWindowMaxSize(1366, 768); // Maximum amount of PSRAM usage.
     SetWindowSize(CORE.Window.screen.width, CORE.Window.screen.height);
+
+    InitDisplay();
 
     // TODO: Check display, device and context activation
     //----------------------------------------------------------------------------

@@ -41,7 +41,7 @@ option(USE_USB_CONSOLE_OUT "Wait until the USB is connected before going forward
 option(USE_RGB_LED_AS_DEBUG "Use the RGBLED to show what state the renderer is in." OFF)
 
 enum_option(RAYLIB_DISPLAY 
-    "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout" 
+    "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout;Pimoroni_Display_Pack_1.14;Waveshare_Pico_LCD_1.3" 
     "Which video output is wired up?"
 )
 enum_option(RAYLIB_BOARD 
@@ -52,6 +52,8 @@ enum_option(DISPLAY_ORIENTATION
     "Landscape;Portrait;Inverted_Landscape;Inverted_Portrait"
     "Which orientation is the screen?"
 )
+
+message("Pico Display (RAYLIB_DISPLAY) is: ${RAYLIB_DISPLAY}")
 
 if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
     set(PICO_BOARD "vgaboard")

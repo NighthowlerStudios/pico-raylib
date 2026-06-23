@@ -5,15 +5,15 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 
-static const int PICO_DISPLAY_WIDTH = 320;
-static const int PICO_DISPLAY_HEIGHT = 240;
+static const int PICO_DISPLAY_WIDTH = 240;
+static const int PICO_DISPLAY_HEIGHT = 135;
 static const uint8_t PICO_DISPLAY_BUTTON_A = 12;
 static const uint8_t PICO_DISPLAY_BUTTON_B = 13;
 static const uint8_t PICO_DISPLAY_BUTTON_X = 14;
 static const uint8_t PICO_DISPLAY_BUTTON_Y = 15;
-static const uint8_t PICO_DISPLAY_LED_R = 26;
-static const uint8_t PICO_DISPLAY_LED_G = 27;
-static const uint8_t PICO_DISPLAY_LED_B = 28;
+static const uint8_t PICO_DISPLAY_LED_R = 6;
+static const uint8_t PICO_DISPLAY_LED_G = 7;
+static const uint8_t PICO_DISPLAY_LED_B = 8;
 
 static const uint8_t SPI_DEFAULT_MOSI = 19;
 static const uint8_t SPI_DEFAULT_DC = 16;
