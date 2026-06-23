@@ -44,10 +44,6 @@ Orientation currentOrientation = DISPLAY_ORIENTATION;
 
 static const uint8_t PIN_UNUSED = CHAR_MAX; // Intentionally INT_MAX to avoid overflowing MicroPython's int type
 
-uint8_t maSPI_DEFAULT_DCtl;
-uint16_t caset[2] = {0, 0};
-uint16_t raset[2] = {0, 0};
-
 typedef enum MASPI_DEFAULT_DCTL {
     ROW_ORDER   = 0b10000000,
     COL_ORDER   = 0b01000000,
@@ -269,36 +265,101 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     sleep_ms(100);
 
     // Setup the bus boundaries.
-    // TODO: Actually make this configurable.
-    currentOrientation = LANDSCAPE;
+    // OpenGL draws its coordinates bottom to top instead of top to bottom so we need to override some stuff in here.
+    uint8_t madctl;
+    uint16_t caset[2] = {0, 0};
+    uint16_t raset[2] = {0, 0};
 
-    int currentWidth = (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT) ? height : width;
-    int currentHeight = (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT) ? width : height;
+    // 240x240 Square and Round LCD Breakouts
+    if(width == 240 && height == 240) {
+      int row_offset = round ? 40 : 80;
+      int col_offset = 0;
     
-    switch (currentOrientation)
-    {
-        // OpenGL draws the buffer from the bottom left as origin, instead of top left.  
-        // So instead of Top to Bottom, we need Bottom to Top.  But still remain Left to Right in all cases.
-        // Then, and only after that logic, rotate and reorder.
+      switch(currentOrientation) {
         case PORTRAIT:
-            maSPI_DEFAULT_DCtl = ROW_ORDER;
-            break;
+          if (!round) row_offset = 0;
+          caset[0] = row_offset;
+          caset[1] = width + row_offset - 1;
+          raset[0] = col_offset;
+          raset[1] = width + col_offset - 1;
+
+          madctl = HORIZ_ORDER | COL_ORDER | SWAP_XY;
+          break;
         case INVERTED_LANDSCAPE:
-            maSPI_DEFAULT_DCtl = ROW_ORDER | COL_ORDER | SWAP_XY;
-            break;
+          caset[0] = col_offset;
+          caset[1] = width + col_offset - 1;
+          raset[0] = row_offset;
+          raset[1] = width + row_offset - 1;
+
+          madctl = HORIZ_ORDER | COL_ORDER | ROW_ORDER;
+          break;
         case INVERTED_PORTRAIT:
-            maSPI_DEFAULT_DCtl = ROW_ORDER;
-            break;
-        default: // LANDSCAPE
-            maSPI_DEFAULT_DCtl = SWAP_XY;
-            break;
+          caset[0] = row_offset;
+          caset[1] = width + row_offset - 1;
+          raset[0] = col_offset;
+          raset[1] = width + col_offset - 1;
+
+          madctl = ROW_ORDER | SWAP_XY;
+          break;
+        default: // ROTATE_0 (and for any smart-alec who tries to rotate 45 degrees or something...)
+          if (!round) row_offset = 0;
+          caset[0] = col_offset;
+          caset[1] = width + col_offset - 1;
+          raset[0] = row_offset;
+          raset[1] = width + row_offset - 1;
+
+          madctl = HORIZ_ORDER;
+          break;
+      }
     }
 
-    // Make sure to inherit a 90 degree rotation.
-    caset[0] = 0;
-    caset[1] = currentWidth - 1;
-    raset[0] = 0;
-    raset[1] = currentHeight - 1;
+    // Pico Display
+    if(width == 240 && height == 135) {
+      caset[0] = 40;   // 240 cols
+      caset[1] = 40 + width - 1;
+      raset[0] = 52;   // 135 rows
+      raset[1] = 52 + height - 1;
+      if (currentOrientation == LANDSCAPE) {
+        raset[0] += 1;
+        raset[1] += 1;
+      }
+      madctl = currentOrientation == INVERTED_LANDSCAPE ? ROW_ORDER : COL_ORDER;
+      madctl |= SWAP_XY | SCAN_ORDER | ROW_ORDER;
+    }
+
+    // Pico Display at 90 degree rotation
+    if(width == 135 && height == 240) {
+      caset[0] = 52;   // 135 cols
+      caset[1] = 52 + width - 1;
+      raset[0] = 40;   // 240 rows
+      raset[1] = 40 + height - 1;
+      madctl = 0;
+      if (currentOrientation == PORTRAIT) {
+        caset[0] += 1;
+        caset[1] += 1;
+        madctl = COL_ORDER | ROW_ORDER;
+      }
+      madctl = currentOrientation == PORTRAIT ? (COL_ORDER | ROW_ORDER) : 0;
+    }
+
+    // Pico Display 2.0
+    if(width == 320 && height == 240) {
+      caset[0] = 0;
+      caset[1] = 319;
+      raset[0] = 0;
+      raset[1] = 239;
+      madctl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? ROW_ORDER : COL_ORDER;
+      madctl |= SWAP_XY | SCAN_ORDER | ROW_ORDER;
+    }
+
+    // Pico Display 2.0 at 90 degree rotation
+    if(width == 240 && height == 320) {
+      caset[0] = 0;
+      caset[1] = 239;
+      raset[0] = 0;
+      raset[1] = 319;
+      madctl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? (COL_ORDER | ROW_ORDER) : 0;
+    }
 
     // Byte swap the 16bit rows/cols values
     caset[0] = __builtin_bswap16(caset[0]);
@@ -308,7 +369,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
 
     command(CASET,  4, (char *)caset);
     command(RASET,  4, (char *)raset);
-    command(MASPI_DEFAULT_DCTLREG, 1, (char *)&maSPI_DEFAULT_DCtl);
+    command(MASPI_DEFAULT_DCTLREG, 1, (char *)&madctl);
 
     printf("[ST7789] Ready for use.\n");
 
@@ -353,7 +414,7 @@ void SendBufferST7789(int width, int height, const char* buffer)
 #else
     // If this is flashing, that's good!  It means the CPU isn't locked up.
     
-    // Takes 0.01952 seconds on average, but draw time of raylib is quite high.  
+    // Takes 0.01952 seconds on average 320 x 240 lcd's, but draw time of raylib is quite high.  
     // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
     // Once we use core 1 this won't be too additive to frame time, but you'll be hard capped to 43 fps.
     command(RAMWR, width * height * sizeof(uint16_t), buffer);

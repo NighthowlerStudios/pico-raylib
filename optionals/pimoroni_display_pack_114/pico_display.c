@@ -99,7 +99,9 @@ void InitDisplay(void)
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
     // In multicore mode this will pulse extremely quickly.
+#ifndef MULTICORE
     SHOW_LED_LCD_DRAWING;
+#endif
 
     SendBufferST7789(screenWidth, screenHeight, (const char*)buffer);
 
