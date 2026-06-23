@@ -73,4 +73,6 @@ RGBLED* InitRGBLED(const uint8_t newRPin, const uint8_t newGPin, const uint8_t n
     rgb->bPin = newBPin;
 
     SHOW_NO_LED;
+
+    return rgb;
 }
