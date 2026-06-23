@@ -30,10 +30,10 @@
 #include <stdint.h>
 
 typedef enum Orientation {
-    PORTRAIT = 0,
-    LANDSCAPE = 1,
-    INVERTED_PORTRAIT = 2,
-    INVERTED_LANDSCAPE = 3
+    LANDSCAPE = 0,
+    PORTRAIT = 1,
+    INVERTED_LANDSCAPE = 2,
+    INVERTED_PORTRAIT = 3
 } Orientation;
 
 extern Orientation currentOrientation;

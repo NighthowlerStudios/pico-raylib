@@ -700,10 +700,30 @@ extern void InitInput(void);
 // Initialise display drivers via pico_display.c
 extern void InitDisplay(void);
 
+#ifdef USE_RGB_LED_AS_DEBUG
+    // Use our copy of an rgb led debug.
+    extern RGBLED* rgb;
+#endif
+
 // Initialize platform: graphics, inputs and more
 int InitPlatform(void)
 {
     stdio_init_all();
+
+#ifdef USE_USB_CONSOLE_OUT
+#ifdef USE_RGB_LED_AS_DEBUG
+    // Using the same pins does not matter.
+    rgb = InitRGBLED(PICO_DISPLAY_LED_R, PICO_DISPLAY_LED_G, PICO_DISPLAY_LED_B);
+
+    while (!stdio_usb_connected())
+    {
+        SHOW_LED_WAITING_FOR_USB;
+        sleep_ms(250);
+        SHOW_NO_LED;
+        sleep_ms(250);
+    }
+#endif
+#endif
 
     // We need to override the core resolutions, so that rcore.c sets the render res correctly before initializing RLSW.
     SetWindowMinSize(0, 0);

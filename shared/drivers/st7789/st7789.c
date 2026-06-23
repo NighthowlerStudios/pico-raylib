@@ -170,7 +170,7 @@ void Core1FlipBuffer(void)
         // On a 250mhz core overclock, spi periclock totals to about 0.023380 seconds.  Gives us a theoretical ceiling of 43 fps.
         // However on the original 150mhz core overclock, spi periclock gets us about 0.19870 seconds.  Gives us a theoretical ceiling of 50 fps.
         //float currentTime = GetTime();
-        command(RAMWR, currentWidth * cirrentHeight * sizeof(uint16_t), (const char*)currentBuffer);
+        command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
         //printf("[DEVICE] SPI output time: %f\n", GetTime() - currentTime);
 
         mutex_exit(&frameBufferMutex);
