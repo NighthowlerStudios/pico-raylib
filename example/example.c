@@ -237,7 +237,7 @@ float scale = 0.0f;
 void waving_cubes_draw(void)
 {
     // Specify the amount of blocks in each direction
-    const int numBlocks = 5;
+    const int numBlocks = 15;
 
     ClearBackground(RAYWHITE);
 
@@ -270,7 +270,8 @@ void waving_cubes_draw(void)
                     Color cubeColor = ColorFromHSV((float)(((x + y + z)*18)%360), 0.75f, 0.9f);
 
                     // Calculate cube size
-                    float cubeSize = (2.4f - scale)*blockScale;
+                    // Most pico screens are tiny!
+                    float cubeSize = (2.4f - scale)*blockScale * 2;
 
                     // And finally, draw the cube!
                     DrawCube(cubePos, cubeSize, cubeSize, cubeSize, cubeColor);

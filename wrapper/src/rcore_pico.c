@@ -732,6 +732,10 @@ int InitPlatform(void)
 
     InitDisplay(CORE.Window.screen.width, CORE.Window.screen.height);
 
+    // Initialize currentFbo to the render dimensions for BeginMode3D calculations
+    CORE.Window.currentFbo.width = CORE.Window.screen.width;
+    CORE.Window.currentFbo.height = CORE.Window.screen.height;
+
     // TODO: Check display, device and context activation
     //----------------------------------------------------------------------------
 
