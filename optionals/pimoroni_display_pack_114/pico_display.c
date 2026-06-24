@@ -80,18 +80,18 @@ void PollInput(void)
 
 // Internal linkage of these methods to prevent misuse by the Raylib user.
 
-extern void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs);
+extern void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs, bool circular);
 extern void SendBufferST7789(int width, int height, const char* buffer);
 extern void CleanupST7789(void);
 
 // And now expose this functionality to Raylib.
-void InitDisplay(void)
+void InitDisplay(unsigned int width, unsigned int height)
 {
     SHOW_LED_INITIALIZING_ST7789;
 
-    printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", PICO_DISPLAY_WIDTH, PICO_DISPLAY_HEIGHT);
+    printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", width, height, false);
 
-    InitST7789(PICO_DISPLAY_WIDTH, PICO_DISPLAY_HEIGHT, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS);
+    InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS);
 
     SHOW_LED_NO_FRAME_COMMANDED;
 }

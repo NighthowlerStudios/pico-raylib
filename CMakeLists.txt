@@ -38,7 +38,6 @@ endif()
 option(BUILD_RAYLIB_EXAMPLES "Build the examples folder inside of the Raylib submodule using this version of the library." OFF)
 option(BUILD_EXAMPLE "Build the main example that demonstrates everything possible." ON)
 option(USE_USB_CONSOLE_OUT "Wait until the USB is connected before going forward with InitWindow()" OFF)
-option(USE_RGB_LED_AS_DEBUG "Use the RGBLED to show what state the renderer is in." OFF)
 
 enum_option(RAYLIB_DISPLAY 
     "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout;Pimoroni_Display_Pack_1.14;Waveshare_Pico_LCD_1.3" 
@@ -53,7 +52,7 @@ enum_option(DISPLAY_ORIENTATION
     "Which orientation is the screen?"
 )
 
-message("Pico Display (RAYLIB_DISPLAY) is: ${RAYLIB_DISPLAY}")
+message("Pico Display Orientation (DISPLAY_ORIENTATION) is: ${DISPLAY_ORIENTATION}")
 
 if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
     set(PICO_BOARD "vgaboard")
@@ -92,6 +91,15 @@ cmake_dependent_option(
     [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo" 
     OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_DVI_Breakout"]]
     ON # The above is false, this option is now locked to ON
+)
+
+# Some boards have an RGB LED, some don't
+cmake_dependent_option(
+    USE_RGB_LED_AS_DEBUG
+    "Use the RGBLED to show what state the renderer is in."
+    OFF # The below is true, this option is now configurable
+    [[NOT RAYLIB_DISPLAY STREQUAL "Waveshare_Pico_LCD_1.3"]]
+    OFF # The above is false, this option is now locked to OFF
 )
 
 include(pico-sdk/pico_sdk_init.cmake)

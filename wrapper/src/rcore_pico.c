@@ -698,7 +698,7 @@ void PollInputEvents(void)
 extern void InitInput(void);
 
 // Initialise display drivers via pico_display.c
-extern void InitDisplay(void);
+extern void InitDisplay(unsigned int width, unsigned int height);
 
 #ifdef USE_RGB_LED_AS_DEBUG
     // Use our copy of an rgb led debug.
@@ -711,9 +711,10 @@ int InitPlatform(void)
     stdio_init_all();
 
 #ifdef USE_USB_CONSOLE_OUT
-#ifdef USE_RGB_LED_AS_DEBUG
     // Using the same pins does not matter.
+#ifdef USE_RGB_LED_AS_DEBUG
     rgb = InitRGBLED(PICO_DISPLAY_LED_R, PICO_DISPLAY_LED_G, PICO_DISPLAY_LED_B);
+#endif
 
     while (!stdio_usb_connected())
     {
@@ -723,14 +724,13 @@ int InitPlatform(void)
         sleep_ms(250);
     }
 #endif
-#endif
 
     // We need to override the core resolutions, so that rcore.c sets the render res correctly before initializing RLSW.
     SetWindowMinSize(0, 0);
     SetWindowMaxSize(1366, 768); // Maximum amount of PSRAM usage.
     SetWindowSize(CORE.Window.screen.width, CORE.Window.screen.height);
 
-    InitDisplay();
+    InitDisplay(CORE.Window.screen.width, CORE.Window.screen.height);
 
     // TODO: Check display, device and context activation
     //----------------------------------------------------------------------------

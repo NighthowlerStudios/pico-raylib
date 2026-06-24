@@ -5,18 +5,20 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 
-inline const char* GetMonitorDeviceName(void) { return "Pimoroni Pico Display Pack 2.8\""; }
+inline const char* GetMonitorDeviceName(void) { return "Pimoroni Pico Display Pack 1.14\""; }
 
 // Comparison table.
 PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST] = {
     { KEY_A, PICO_DISPLAY_BUTTON_A, false },
     { KEY_B, PICO_DISPLAY_BUTTON_B, false },
     { KEY_X, PICO_DISPLAY_BUTTON_X, false },
-    { KEY_ESCAPE, PICO_DISPLAY_BUTTON_Y, false } // Quit button.
+    { KEY_ESCAPE, PICO_DISPLAY_BUTTON_Y, false }, // Quit button.
+    { KEY_UP, PICO_DISPLAY_JOY_UP, false },
+    { KEY_DOWN, PICO_DISPLAY_JOY_DOWN, false },
+    { KEY_LEFT, PICO_DISPLAY_JOY_LEFT, false },
+    { KEY_RIGHT, PICO_DISPLAY_JOY_RIGHT, false },
+    { KEY_SPACE, PICO_DISPLAY_JOY_PRESS, false }
 };
-
-// Our RGB LED.  Implemented with the name the macros expect.
-RGBLED* rgb = NULL;
 
 int GetHardwareResolutionWidth()
 {
@@ -84,12 +86,25 @@ extern void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc
 extern void SendBufferST7789(int width, int height, const char* buffer);
 extern void CleanupST7789(void);
 
+#include "hardware/gpio.h"
+
 // And now expose this functionality to Raylib.
 void InitDisplay(unsigned int width, unsigned int height)
 {
     SHOW_LED_INITIALIZING_ST7789;
 
     printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", width, height);
+
+    // Waveshare systems don't use backlight to control reset.
+    gpio_init(SPI_RST);
+    gpio_set_dir(SPI_RST, GPIO_OUT);
+
+    // Reset as a pulse
+    gpio_put(SPI_RST, false);
+    sleep_ms(150);
+
+    gpio_put(SPI_RST, true);
+    sleep_ms(150);
 
     InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS, false);
 
@@ -99,7 +114,7 @@ void InitDisplay(unsigned int width, unsigned int height)
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
     // In multicore mode this will pulse extremely quickly.
-#ifndef MULTCORE
+#ifndef MULTICORE
     SHOW_LED_LCD_DRAWING;
 #endif
 

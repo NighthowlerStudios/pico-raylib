@@ -175,7 +175,7 @@ void Core1FlipBuffer(void)
 
 #endif
 
-void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs)
+void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs, bool circular)
 {
     DC = dc;
     SCK = sck;
@@ -272,18 +272,18 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
 
     // 240x240 Square and Round LCD Breakouts
     if(width == 240 && height == 240) {
-      int row_offset = round ? 40 : 80;
+      int row_offset = circular ? 40 : 80;
       int col_offset = 0;
     
       switch(currentOrientation) {
         case PORTRAIT:
-          if (!round) row_offset = 0;
+          if (!circular) row_offset = 0;
           caset[0] = row_offset;
           caset[1] = width + row_offset - 1;
           raset[0] = col_offset;
           raset[1] = width + col_offset - 1;
 
-          madctl = HORIZ_ORDER | COL_ORDER | SWAP_XY;
+          madctl = ROW_ORDER;
           break;
         case INVERTED_LANDSCAPE:
           caset[0] = col_offset;
@@ -291,7 +291,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
           raset[0] = row_offset;
           raset[1] = width + row_offset - 1;
 
-          madctl = HORIZ_ORDER | COL_ORDER | ROW_ORDER;
+          madctl = SWAP_XY | COL_ORDER | ROW_ORDER;
           break;
         case INVERTED_PORTRAIT:
           caset[0] = row_offset;
@@ -299,16 +299,16 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
           raset[0] = col_offset;
           raset[1] = width + col_offset - 1;
 
-          madctl = ROW_ORDER | SWAP_XY;
+          madctl = COL_ORDER;
           break;
         default: // ROTATE_0 (and for any smart-alec who tries to rotate 45 degrees or something...)
-          if (!round) row_offset = 0;
+          if (!circular) row_offset = 0;
           caset[0] = col_offset;
           caset[1] = width + col_offset - 1;
           raset[0] = row_offset;
           raset[1] = width + row_offset - 1;
 
-          madctl = HORIZ_ORDER;
+          madctl = SWAP_XY;
           break;
       }
     }
@@ -319,12 +319,12 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
       caset[1] = 40 + width - 1;
       raset[0] = 52;   // 135 rows
       raset[1] = 52 + height - 1;
-      if (currentOrientation == LANDSCAPE) {
+      if (currentOrientation == INVERTED_LANDSCAPE) {
         raset[0] += 1;
         raset[1] += 1;
       }
-      madctl = currentOrientation == INVERTED_LANDSCAPE ? ROW_ORDER : COL_ORDER;
-      madctl |= SWAP_XY | SCAN_ORDER | ROW_ORDER;
+      madctl = currentOrientation == INVERTED_LANDSCAPE ? ROW_ORDER | COL_ORDER : 0;
+      madctl |= SWAP_XY;
     }
 
     // Pico Display at 90 degree rotation
@@ -334,12 +334,11 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
       raset[0] = 40;   // 240 rows
       raset[1] = 40 + height - 1;
       madctl = 0;
-      if (currentOrientation == PORTRAIT) {
+      if (currentOrientation == INVERTED_PORTRAIT) {
         caset[0] += 1;
         caset[1] += 1;
-        madctl = COL_ORDER | ROW_ORDER;
       }
-      madctl = currentOrientation == PORTRAIT ? (COL_ORDER | ROW_ORDER) : 0;
+      madctl = currentOrientation == INVERTED_PORTRAIT ? COL_ORDER : ROW_ORDER;
     }
 
     // Pico Display 2.0
@@ -348,8 +347,8 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
       caset[1] = 319;
       raset[0] = 0;
       raset[1] = 239;
-      madctl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? ROW_ORDER : COL_ORDER;
-      madctl |= SWAP_XY | SCAN_ORDER | ROW_ORDER;
+      madctl = currentOrientation == INVERTED_LANDSCAPE ? ROW_ORDER | COL_ORDER : 0;
+      madctl |= SWAP_XY;
     }
 
     // Pico Display 2.0 at 90 degree rotation
@@ -358,7 +357,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
       caset[1] = 239;
       raset[0] = 0;
       raset[1] = 319;
-      madctl = (currentOrientation == INVERTED_LANDSCAPE || currentOrientation == PORTRAIT) ? (COL_ORDER | ROW_ORDER) : 0;
+      madctl = currentOrientation == INVERTED_PORTRAIT ? COL_ORDER : ROW_ORDER;
     }
 
     // Byte swap the 16bit rows/cols values
