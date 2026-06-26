@@ -13,6 +13,10 @@ set(pico_libs
     hardware_gpio
     hardware_pio #Needed to sync the peri clk
     hardware_pwm
+    hardware_spi
+    hardware_dma
+    hardware_clocks # Support overclocking.
+    hardware_vreg
 )
 
 target_link_libraries(st7789 INTERFACE

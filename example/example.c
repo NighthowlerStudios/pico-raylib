@@ -16,9 +16,7 @@
 // Required for sleep and in-flash textures.
 #include "pico/stdlib.h" 
 
-// Overclocking and memory reporting.
-#include "hardware/vreg.h"
-#include "hardware/clocks.h"
+// Memory reporting.
 #include "sfe_pico.h"
 
 #include "raylib.h"
@@ -303,13 +301,6 @@ int main(void)
     // Initialization
     //--------------------------------------------------------------------------------------
     // TODO: Support portrait windowing.
-
-    // Ready to void your warranty?  Uncomment these.
-    // We use these numbers to show competition with the ESP32, which has a 240MHz clock.
-    vreg_set_voltage(VREG_VOLTAGE_1_20);
-    // This clock was chosen as it prevents the SPI clock from dividing badly.
-    set_sys_clock_khz(250000, true);
-    sleep_ms(100);
 
     // Also used to test that the screen gets clamped by force.
     // Note: to allocate this to SRAM, make sure InitWindow is first before all other allocations and that your stack is rather small!

@@ -38,6 +38,7 @@ endif()
 option(BUILD_RAYLIB_EXAMPLES "Build the examples folder inside of the Raylib submodule using this version of the library." OFF)
 option(BUILD_EXAMPLE "Build the main example that demonstrates everything possible." ON)
 option(USE_USB_CONSOLE_OUT "Wait until the USB is connected before going forward with InitWindow()" OFF)
+option(OVERCLOCK "Overclock the RP2350 to the best frequency supported by the current display driver." OFF)
 
 enum_option(RAYLIB_DISPLAY 
     "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout;Pimoroni_Display_Pack_1.14;Waveshare_Pico_LCD_1.3" 
@@ -181,6 +182,12 @@ if (MULTICORE)
     )
 endif()
 
+if (OVERCLOCK)
+    list(APPEND raylib_defs
+        OVERCLOCK
+    )
+endif()
+
 # We rip apart the raylib sources to stub some of the defines for now.
 
 set(raylib_sources
@@ -239,12 +246,7 @@ set(pico_libraries
     # Replace default allocators with PSRAM ones.
     sparkfun_pico
 
-    hardware_dma
-    hardware_interp
     hardware_timer
-    hardware_spi
-    hardware_clocks
-    hardware_vreg
     hardware_sleep #pico-extras
     hardware_sleep_headers #pico-extras
 )

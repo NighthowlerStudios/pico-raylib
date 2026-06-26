@@ -175,6 +175,11 @@ void Core1FlipBuffer(void)
 
 #endif
 
+#ifdef OVERCLOCK
+#include "hardware/vreg.h"
+#include "hardware/clocks.h"
+#endif
+
 void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs, bool circular)
 {
     DC = dc;
@@ -182,6 +187,16 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     MOSI = mosi;
     PWM = pwm;
     CS = cs;
+
+#ifdef OVERCLOCK
+    // We use these numbers to show competition with the ESP32, which has a 240MHz clock.
+
+    vreg_set_voltage(VREG_VOLTAGE_1_20);
+    set_sys_clock_khz(250000, true); // This clock was chosen as it prevents the SPI clock from dividing badly.
+    sleep_ms(100); // For stability of the voltage regulator.
+#endif
+
+
     // Force the peripheral clock to be half the CPU. This will also force SPI to be as high as it can go.
     // Consequently, we prevent overclocks past 250mhz.
     uint32_t freq = clock_get_hz(clk_sys);
