@@ -705,9 +705,30 @@ extern void InitDisplay(unsigned int width, unsigned int height);
     extern RGBLED* rgb;
 #endif
 
+#ifdef OVERCLOCK
+#include "hardware/vreg.h"
+#include "hardware/clocks.h"
+#endif
+
 // Initialize platform: graphics, inputs and more
 int InitPlatform(void)
 {
+#ifdef OVERCLOCK
+
+#warning "Overclocking is active.  This will set the overclock detect bit on your device and void your warranty.  DO NOT INSTALL IF YOU WANT YOUR WARRANTY."
+    // We use these numbers to show competition with the ESP32, which has a 240MHz clock.
+
+    vreg_set_voltage(VREG_VOLTAGE_1_20);
+    set_sys_clock_khz(250000, true); // This clock was chosen as it prevents the SPI clock from dividing badly.
+    sleep_ms(200); // For stability of the voltage regulator.
+
+    // Force the peripheral clock to be half the CPU. This will also force SPI to be as high as it can go.
+    // Consequently, we prevent overclocks past 250mhz.
+    uint32_t freq = clock_get_hz(clk_sys);
+    clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, freq, freq);
+
+#endif
+
     stdio_init_all();
 
 #ifdef USE_USB_CONSOLE_OUT
