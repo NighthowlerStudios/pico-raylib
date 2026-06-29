@@ -376,7 +376,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
 
     // Create the mutex and initialize Core 1.
 #ifdef MULTICORE
-    if (width * height > 240 * 240)
+    if (width * height > 320 * 240)
     {
         printf("[ST7789] [WARNING] LCD SPI is set to use Core 1 instead of 0, but on this display resolution, the depth buffer will likely end up in PSRAM.\n");
     }
