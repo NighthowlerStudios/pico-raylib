@@ -13,19 +13,15 @@
 
 #include <stddef.h>
 
-// Stub types
+// Stub types 
 typedef struct DIR DIR;
 struct dirent {
     char d_name[256];
 };
 
-// Stub functions - return NULL/error to indicate not supported
-#ifndef SD_CARD
+// TODO: Emulate directory listings, probably by just wrapping lfs directly.
 static inline DIR *opendir(const char *name) { return NULL; }
 static inline struct dirent *readdir(DIR *dirp) { return NULL; }
 static inline int closedir(DIR *dirp) { return -1; }
-#else
-// TODO: implement SD card library as a file system
-#endif
 
 #endif // DIRENT_H_PICO2_STUB

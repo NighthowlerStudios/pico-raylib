@@ -1,10 +1,10 @@
-add_library(st7789 INTERFACE)
+add_library(vga INTERFACE)
 
-target_sources(st7789 INTERFACE
-    "st7789.c"
+target_sources(vga INTERFACE
+    "vga.c"
 )
 
-target_include_directories(st7789 INTERFACE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(vga INTERFACE ${CMAKE_CURRENT_LIST_DIR})
 
 # pico-raylib already includes a lot.
 set(pico_libs 
@@ -12,15 +12,13 @@ set(pico_libs
 
     hardware_gpio
     hardware_pio #Needed to sync the peri clk
-    hardware_pwm
-    hardware_spi
     hardware_dma
     hardware_clocks # Support overclocking.
     hardware_vreg
 
-    orientation
+    pico_scanvideo_scanline_color_16bpp
 )
 
-target_link_libraries(st7789 INTERFACE
+target_link_libraries(vga INTERFACE
     ${pico_libs}
 )

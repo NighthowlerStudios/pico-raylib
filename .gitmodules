@@ -1,9 +1,6 @@
 [submodule "pico-sdk"]
 	path = pico-sdk
 	url = https://github.com/RaspberryPi/pico-sdk
-[submodule "pimoroni-pico"]
-	path = pimoroni-pico
-	url = https://github.com/Pimoroni/pimoroni-pico
 [submodule "raylib"]
 	path = raylib
 	url = https://github.com/NighthowlerStudios/raylib
@@ -13,3 +10,6 @@
 [submodule "pico-extras"]
 	path = pico-extras
 	url = https://github.com/RaspberryPi/pico-extras
+[submodule "pico-vfs"]
+	path = pico-vfs
+	url = https://github.com/oyama/pico-vfs

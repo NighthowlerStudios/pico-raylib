@@ -12,6 +12,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef SD_CARD
+#include <sys/stat.h>
+#endif
+
 // Stub defines.
 #define	F_OK	0
 
@@ -19,14 +23,18 @@
 typedef uint32_t mode_t;
 
 // Stub functions - return NULL/error to indicate not supported
-#ifndef SD_CARD
-extern void _exit(int status);
+// TODO: Emulate working directory.
 inline char* getcwd(char* __buf, size_t __size) { return "/"; }
 inline int chdir(const char* __path) { return -1; }
+
+extern void _exit(int status);
+
+#ifndef SD_CARD
 //inline int mkdir(const char* _path, mode_t __mode ) { return -1; }
 inline int access(const char* __path, int __amode) { return -1;}
 #else
-// TODO: implement SD card library as a file system
+// We have the ability to test for file existence, but not using access().  Let's emulate access.
+static inline int access(const char *pathname, int mode) { struct stat buffer; return stat(pathname, &buffer);}
 #endif
 
 #endif // DIRENT_H_PICO2_STUB

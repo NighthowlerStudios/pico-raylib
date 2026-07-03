@@ -3,23 +3,20 @@
 #ifndef PICO_DISPLAY_H
 #define PICO_DISPLAY_H
 
-// Keep visible for rcore_pico.c to see the extern dimensions
-#define NUM_BUTTONS_TO_TEST 9
-
 #include <stdint.h>
 #include <stdbool.h>
 #include "raylib.h"
 
 // Expose these controls to the including library.
 #include "st7789.h"
-#include "pio_button.h"
+#include "ray_button.h"
 
 // No RGB LED debugs
 #define SHOW_LED_WAITING_FOR_USB
-#define SHOW_LED_INITIALIZING_ST7789 
+#define SHOW_LED_INITIALIZING 
 #define SHOW_LED_NO_FRAME_COMMANDED
 #define SHOW_LED_RLSW_DRAWING
-#define SHOW_LED_LCD_DRAWING
+#define SHOW_LED_DISPLAY_DRAWING
 #define SHOW_NO_LED 
 
 static const int PICO_DISPLAY_WIDTH = 240;
@@ -42,12 +39,5 @@ static const uint8_t SPI_BG_FRONT_PWM = 13;
 static const uint8_t SPI_BG_FRONT_CS = 9;
 
 static const uint8_t SPI_RST = 12;
-
-// Emulate buttons like keys on the keyboard.
-typedef struct PicoButton {
-    KeyboardKey key;  // TODO: Don't link the entire raylib header just for this
-    uint8_t buttonPin;
-    bool isDown;
-} PicoButton;
 
 #endif

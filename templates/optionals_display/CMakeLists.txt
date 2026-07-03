@@ -13,6 +13,10 @@ set(pico_libs
     hardware_gpio
     hardware_pio #Needed to sync the peri clk
     hardware_pwm
+    hardware_clocks # Support overclocking.
+    hardware_vreg
+
+    # Add needed shared libraries such as drivers in here.
 )
 
 target_link_libraries(optionals_display INTERFACE

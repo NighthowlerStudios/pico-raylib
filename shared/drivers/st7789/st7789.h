@@ -29,14 +29,8 @@
 
 #include <stdint.h>
 
-typedef enum Orientation {
-    LANDSCAPE = 0,
-    PORTRAIT = 1,
-    INVERTED_LANDSCAPE = 2,
-    INVERTED_PORTRAIT = 3
-} Orientation;
-
-extern Orientation currentOrientation;
+// Drivers should dictate if orientation is supported.  
+#include "orientation.h"
 
 // Set the backlight manually.
 void SetBacklight(uint8_t brightness);

@@ -55,16 +55,13 @@ enum_option(DISPLAY_ORIENTATION
 
 message("Pico Display Orientation (DISPLAY_ORIENTATION) is: ${DISPLAY_ORIENTATION}")
 
-if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
-    set(PICO_BOARD "vgaboard")
-else()
-    if (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2")
-        set(PICO_BOARD "pimoroni_pico_plus2_rp2350")
-    endif()
-    if (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2_W")
-        set(PICO_BOARD "pimoroni_pico_plus2_w_rp2350")
-    endif()
+if (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2")
+    set(PICO_BOARD "pimoroni_pico_plus2_rp2350")
 endif()
+if (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2_W")
+    set(PICO_BOARD "pimoroni_pico_plus2_w_rp2350")
+endif()
+
 
 # The following are still on if using the VGA Demo board.
 # Otherwise, they aren't expected to be here on any other board type.
@@ -88,7 +85,7 @@ cmake_dependent_option(
 cmake_dependent_option(
     MULTICORE
     "Don't use the same core Raylib uses to draw to the LCD.  Required with VGA/DVI"
-    OFF # The below is true, this option is now configurable
+    ON # The below is true, this option is now configurable
     [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo" 
     OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_DVI_Breakout"]]
     ON # The above is false, this option is now locked to ON
@@ -143,9 +140,32 @@ set(raylib_defs
     SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
 )
 
+# Use half of flash for disk.
 if ((RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2") OR (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2_W"))
     list(APPEND raylib_defs 
         SFE_RP2350_XIP_CSI_PIN=PIMORONI_PICO_PLUS2_PSRAM_CS_PIN
+        PICO_FS_DEFAULT_SIZE=8388608  # 8MB filesystem partition, Pimoroni Pico 2 plus has 16MB of flash.
+    )
+else()
+    list(APPEND raylib_defs 
+        PICO_FS_DEFAULT_SIZE=2097152  # 2MB filesystem partition, since the Pico 2 comes with 4MB of flash.
+    )
+endif()
+
+if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
+    list(APPEND raylib_defs 
+        # VGA
+        PICO_SCANVIDEO_COLOR_PIN_BASE=0
+        PICO_SCANVIDEO_SYNC_PIN_BASE=8
+
+        # Audio
+        PICO_AUDIO_I2S_DATA_PIN=12
+        PICO_AUDIO_I2S_CLOCK_PIN_BASE=13
+
+        # SD Card
+        PICO_SD_CLK_PIN=5
+        PICO_SD_CMD_PIN=18
+        PICO_SD_DAT0_PIN=19
     )
 endif()
 
@@ -199,14 +219,15 @@ set(raylib_sources
     "raylib/src/rmodels.c"
 )
 
-if (AUX_AUDIO)
-    list(APPEND raylib_sources
-        "raylib/src/raudio.c"
-    )
-    list(APPEND raylib_defs
-        AUX_AUDIO
-    )
-endif()
+# TODO: Add this back in when we have a working audio driver.
+# if (AUX_AUDIO)
+#     list(APPEND raylib_sources
+#         "raylib/src/raudio.c"
+#     )
+#     list(APPEND raylib_defs
+#         AUX_AUDIO
+#     )
+# endif()
 
 if (SD_CARD)
     list(APPEND raylib_defs
@@ -227,14 +248,24 @@ add_library(pico_raylib INTERFACE)
 target_sources(pico_raylib INTERFACE
     ${raylib_sources}
     "wrapper/src/rcore_pico.c"
+    "wrapper/src/construct.c"
 )
 
 add_subdirectory("sparkfun-pico/sparkfun_pico")
+
+# This is allowed because it can mount to Flash as well.
+add_subdirectory("pico-vfs")
+
+# Add filesystem implementation directly to pico_raylib
+target_sources(pico_raylib INTERFACE
+    "pico-vfs/src/filesystem/fs_init.c"
+)
 
 target_include_directories(pico_raylib INTERFACE
     "wrapper/include" # Force our stubs to override raylib
     "raylib/src"
     "raylib/src/external"
+    "pico-vfs/include" # VFS headers for filesystem/vfs.h
 )
 
 set(pico_libraries
@@ -243,6 +274,11 @@ set(pico_libraries
     pico_float
     pico_double
     pico_rand # Init random seed, for now.
+
+    # File system.
+    blockdevice_flash
+    filesystem_littlefs
+    filesystem_vfs
 
     # Replace default allocators with PSRAM ones.
     sparkfun_pico

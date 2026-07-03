@@ -1,23 +1,13 @@
-// These files are not to be included by the library compile script.
-// Instead, copy and paste it into a new folder in the optionals folder, and include that with a CMakeLists.txt.
+// Copy of templates/optionals_display
 
 #include "pico_display.h"
 
 #include <stdio.h>
 #include "pico/stdlib.h"
 
-// Internal linkage of driver methods should go here to prevent misuse by the Raylib user.
+inline const char* GetMonitorDeviceName(void) { return "Pimoroni VGA Demo\""; }
 
-inline const char* GetMonitorDeviceName(void) { return "Pimoroni Pico Display Pack 1.14\""; }
-
-// Comparison table.
-PicoButton picoButtonTable[] = {
-    { KEY_A, PICO_DISPLAY_BUTTON_A, false },
-    { KEY_B, PICO_DISPLAY_BUTTON_B, false },
-    { KEY_X, PICO_DISPLAY_BUTTON_X, false },
-    { KEY_ESCAPE, PICO_DISPLAY_BUTTON_Y, false } // Quit button.
-};
-int numButtonsToTest = 4;
+int numButtonsToTest = 0;
 
 int GetHardwareResolutionWidth()
 {
@@ -43,12 +33,14 @@ int GetHardwareResolutionHeight()
     }
 }
 
+// vga is supposed to be SRAM usable, so we don't allow upscaling in here.
 void GetMinimumResolution(int* width, int* height)
 {
     *width = GetHardwareResolutionWidth();
     *height = GetHardwareResolutionHeight();
 }
 
+// vga is supposed to be SRAM usable, so we don't allow upscaling in here.
 void GetMaximumResolution(int* width, int* height)
 {
     *width = GetHardwareResolutionWidth();
@@ -57,35 +49,28 @@ void GetMaximumResolution(int* width, int* height)
 
 void InitInput(void)
 {
-    SetupAllButtons();
+    // VGA demo doesn't have any buttons.
 }
 
-// Privated to avoid Raylib user misuse.
-extern void PollAllButtons(void);
 void PollInput(void)
 {
-    PollAllButtons();
+    // VGA Demo doesn't have any buttons.
 }
 
+// And now expose this functionality to Raylib.
 void InitDisplay(unsigned int width, unsigned int height)
 {
-    SHOW_LED_INITIALIZING;
+    printf("[DEVICE] Initializing VGA with width %i and height %i...\n", width, height);
 
-    SHOW_LED_NO_FRAME_COMMANDED;
+    
 }
 
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
-    // In multicore mode this will pulse extremely quickly.
-#ifndef MULTICORE
-    SHOW_LED_DISPLAY_DRAWING;
-#endif
-
-    SHOW_LED_RLSW_DRAWING;
+    // We are always in multicore mode, so no point.
 }
 
 void CleanupDisplay(void)
 {
-    SHOW_NO_LED;
-
+    
 }

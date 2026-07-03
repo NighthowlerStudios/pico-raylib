@@ -8,15 +8,13 @@
 inline const char* GetMonitorDeviceName(void) { return "Pimoroni Pico Display Pack 1.14\""; }
 
 // Comparison table.
-PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST] = {
+PicoButton picoButtonTable[] = {
     { KEY_A, PICO_DISPLAY_BUTTON_A, false },
     { KEY_B, PICO_DISPLAY_BUTTON_B, false },
     { KEY_X, PICO_DISPLAY_BUTTON_X, false },
     { KEY_ESCAPE, PICO_DISPLAY_BUTTON_Y, false } // Quit button.
 };
-
-// Our RGB LED.  Implemented with the name the macros expect.
-RGBLED* rgb = NULL;
+int numButtonsToTest = 4;
 
 int GetHardwareResolutionWidth()
 {
@@ -56,26 +54,16 @@ void GetMaximumResolution(int* width, int* height)
     *height = GetHardwareResolutionHeight();
 }
 
-// Internal use to prevent misuse by the Raylib user.
-
-extern void SetupButton(const uint8_t buttonPin);
-extern bool IsButtonDown(const uint8_t buttonPin);
-
 void InitInput(void)
 {
-    SetupButton(PICO_DISPLAY_BUTTON_A);
-    SetupButton(PICO_DISPLAY_BUTTON_B);
-    SetupButton(PICO_DISPLAY_BUTTON_X);
-    SetupButton(PICO_DISPLAY_BUTTON_Y);
+    SetupAllButtons();
 }
 
+// Privated to avoid Raylib user misuse.
+extern void PollAllButtons(void);
 void PollInput(void)
 {
-    for (int i = 0; i < NUM_BUTTONS_TO_TEST; i++)
-    {
-        // These buttons go low when pressed, not high.
-        picoButtonTable[i].isDown = IsButtonDown(picoButtonTable[i].buttonPin);
-    }
+    PollAllButtons();
 }
 
 // Internal linkage of these methods to prevent misuse by the Raylib user.
@@ -87,7 +75,7 @@ extern void CleanupST7789(void);
 // And now expose this functionality to Raylib.
 void InitDisplay(unsigned int width, unsigned int height)
 {
-    SHOW_LED_INITIALIZING_ST7789;
+    SHOW_LED_INITIALIZING;
 
     printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", width, height, false);
 
@@ -100,7 +88,7 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
     // In multicore mode this will pulse extremely quickly.
 #ifndef MULTICORE
-    SHOW_LED_LCD_DRAWING;
+    SHOW_LED_DISPLAY_DRAWING;
 #endif
 
     SendBufferST7789(screenWidth, screenHeight, (const char*)buffer);

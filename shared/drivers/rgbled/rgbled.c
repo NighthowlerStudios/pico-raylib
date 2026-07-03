@@ -34,21 +34,23 @@
 
 pwm_config pwm_cfg;
 
-void SetRGBLED(RGBLED* rgb, uint8_t r, uint8_t g, uint8_t b, uint8_t brightness)
+RGBLED* rgb = NULL;
+
+void SetRGBLED(RGBLED* led, uint8_t r, uint8_t g, uint8_t b, uint8_t brightness)
 {
     // Save this data for later reading.
-    rgb->r = r;
-    rgb->g = g;
-    rgb->b = b;
-    rgb->brightness = brightness;
+    led->r = r;
+    led->g = g;
+    led->b = b;
+    led->brightness = brightness;
 
     uint16_t r16 = UINT16_MAX - (brightness * r);
     uint16_t g16 = UINT16_MAX - (brightness * g);
     uint16_t b16 = UINT16_MAX - (brightness * b);
 
-    pwm_set_gpio_level(rgb->rPin, r16);
-    pwm_set_gpio_level(rgb->gPin, g16);
-    pwm_set_gpio_level(rgb->bPin, b16);
+    pwm_set_gpio_level(led->rPin, r16);
+    pwm_set_gpio_level(led->gPin, g16);
+    pwm_set_gpio_level(led->bPin, b16);
 }
 
 #include <malloc.h>

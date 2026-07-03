@@ -29,20 +29,22 @@
 
 #include <stdint.h>
 
+#define RGB_LED_IMPLEMENTED 1
+
 // Processing state colours on the LED to monitor what the CPU is doing even if Raylib has become unresponsive.
 #ifdef USE_RGB_LED_AS_DEBUG
     #define SHOW_LED_WAITING_FOR_USB SetRGBLED(rgb, 255, 255, 0, 15)
-    #define SHOW_LED_INITIALIZING_ST7789 SetRGBLED(rgb, 255, 0, 0, 15)
+    #define SHOW_LED_INITIALIZING SetRGBLED(rgb, 255, 0, 0, 15)
     #define SHOW_LED_NO_FRAME_COMMANDED SetRGBLED(rgb, 0, 255, 0, 15)
     #define SHOW_LED_RLSW_DRAWING SetRGBLED(rgb, 0, 255, 255, 15)
-    #define SHOW_LED_LCD_DRAWING SetRGBLED(rgb, 255, 0, 255, 15)
+    #define SHOW_LED_DISPLAY_DRAWING SetRGBLED(rgb, 255, 0, 255, 15)
     #define SHOW_NO_LED SetRGBLED(rgb, 0, 0, 0, 0)
 #else
     #define SHOW_LED_WAITING_FOR_USB
-    #define SHOW_LED_INITIALIZING_ST7789 
+    #define SHOW_LED_INITIALIZING 
     #define SHOW_LED_NO_FRAME_COMMANDED
     #define SHOW_LED_RLSW_DRAWING
-    #define SHOW_LED_LCD_DRAWING
+    #define SHOW_LED_DISPLAY_DRAWING
     #define SHOW_NO_LED SetRGBLED(rgb, 0, 0, 0, 0)
 #endif
 
@@ -57,7 +59,9 @@ typedef struct
     uint8_t brightness;
 } RGBLED;
 
+extern RGBLED* rgb;
+
 RGBLED* InitRGBLED(const uint8_t newRPin, const uint8_t newGPin, const uint8_t newBPin);
-void SetRGBLED(RGBLED* rgb, uint8_t r, uint8_t g, uint8_t b, uint8_t brightness);
+void SetRGBLED(RGBLED* led, uint8_t r, uint8_t g, uint8_t b, uint8_t brightness);
 
 #endif

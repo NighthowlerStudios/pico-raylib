@@ -40,8 +40,6 @@
 // Please note that most of this is copy-pasted from Pimoroni-Pico.
 // Then it was translated over to C, because C++ had some libraries that are incompatible with C99.
 
-Orientation currentOrientation = DISPLAY_ORIENTATION;
-
 static const uint8_t PIN_UNUSED = CHAR_MAX; // Intentionally INT_MAX to avoid overflowing MicroPython's int type
 
 typedef enum MASPI_DEFAULT_DCTL {

@@ -1,8 +1,5 @@
 #include "pio_button.h"
 
-#include <stdint.h>
-#include <stdbool.h>
-
 #include "hardware/gpio.h"
 
 // NOTE: Only supports pull up GPIO.

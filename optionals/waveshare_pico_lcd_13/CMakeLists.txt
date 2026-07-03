@@ -15,7 +15,7 @@ set(pico_libs
     hardware_pwm
 
     st7789
-    pio_button
+    ray_button
 )
 
 target_link_libraries(waveshare_pico_lcd_13 INTERFACE

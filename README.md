@@ -1,22 +1,31 @@
 # pico-raylib
-A port of Raylib to boards with RP2350 and PSRAM
+A wrapper port of Raylib to boards with RP2350 and PSRAM
 
-Please note that pimoroni-pico is a submodule included but not linked to anything, but is provided for ease of copy paste when reimplementing a CPP driver in C.  It may be removed from this repository in the future.
+# Dependencies
+- git cli - Must be placed on your PATH so that the cmake can init submodules recursively on the first use of this library.
+- arm-none-eabi-gcc - Must be placed on your PATH for the pico sdk to find it.
 
-# How to use:
-In your project CMake, add_subdirectory() to the path you pulled this git repository to.  There's nothing else you need to do at all; every dependency gets pulled from their respective git repositories automatically.  You just need to expect the disk usage.
+# How to use
+First, git clone this repository somewhere you will easily remember for your project.
+
+In your project CMake, add_subdirectory() to the path you pulled this git repository to.  There's nothing else you need to do at all to start coding like any typical Raylib codebase; every dependency gets pulled from their respective git repositories automatically.  You just need to expect the disk usage to go up on first CMake configure.  Internet is required to update the submodules during that time.  Afterward it is no longer needed.
 
 Set your CMake options as necessary.  This is mostly in regards to `RAYLIB_DISPLAY` and `RAYLIB_BOARD` as options.  It's recommended to do this via the CMake GUI.
 
-All of your code should remain like you're using Raylib on any other machine.  You may add other pico libraries as you need but support for those hardware pins is not guaranteed.
+All of your code should remain like you're using Raylib on any other machine.  You may add other pico libraries as you need but support for those hardware pins is not guaranteed as pico-raylib's backend might be claiming several of them.
 
-A new header called `pico_display.h` should also be ready.  In here you can control the RGBLED and display backlight.  You can check what's available by looking in the `optionals` folder then selecting the display you chose in the CMake options.
+A new header called `pico_display.h` should also be ready.  Include this so that you can control the RGBLED, screen orientation and display backlight.  You can check what's available by looking in the `optionals` folder then selecting the display you chose in the CMake options.
+
+# Differences
+Unlike the typical operating system and hardware, the Pico 2 cannot initialize stdio UART nor USB communication until *after* the overclock is stabilized.  This is because it runs on a separate clock.  Due to this, printf() (includes TRACELOG()) and others will not be allowed to do anything until after InitWindow() (they will return quietly without an error).  This may require code changes on your end.
+
+Similarly, file system initialization is tucked away inside of InitWindow as well.  This is so that the user doesn't have to initialize the file system themselves, and let the wrapper handle all of that.  This means you shouldn't require any code changes to support read/writes from sdcard or onboard flash, unless you were trying to read or write files before InitWindow.
 
 # Contributing
 This is in regards to adding a new platform such as a pico board or a display output to this system.
 
 ## Adding a different Pico 2 Board.
-Please note only RP2350 is supported by this repository, so only Pico 2 boards are possible.  Pico 1 support will be researched in the future but it's likely useless since Raylib is depth-buffer heavy.
+Please note only RP2350 is supported by this repository, so only Pico 2 boards are possible.  Pico 1 support will not be accepted due to RAM and screen size constraints.
 
 Pico board additions are fairly simple, usually only required to be committed as CMakeLists.txt changes.  Add your board as an enum option in the `RAYLIB_BOARD` option, then in the if-else tree set `PICO_BOARD` to the correct header from the Pico SDK.  
 
@@ -32,13 +41,13 @@ Next, copy and paste `templates/optionals_display` into `optionals` and rename t
 Then, go through both the header and the c file to implement all of the drivers you need for your board type.
 
 ## Rules
-Only C99 code is allowed (I'm fully aware the Pico SDK uses some C++ and ends up building to CXX by force, but let's keep it standard.)
+Only C99 with the GNU99 extension code is allowed (I'm fully aware the Pico SDK uses some C++ and ends up building to CXX by force, but let's keep it standard.)
 If need be this section may be extended in the future.
 
 # Hardware Support TODO Checklist
 
-- [ ] Pimoroni VGA Demo
+- [x] Pimoroni VGA Demo
 - [ ] Pimoroni DVI Demo
 - [x] Pimoroni Display Pack 2.8
 - [x] Pimoroni Display Pack 1.14
-- [ ] Waveshare Pico LCD 1.3
+- [x] Waveshare Pico LCD 1.3

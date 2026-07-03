@@ -52,7 +52,6 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
-#include "pico/stdlib.h"
 
 // All display devices are interfaced to this single header.  
 // Only one optional library is selected at a time in CMakeLists.txt
@@ -636,7 +635,8 @@ const char *GetKeyName(int key)
 
 // Emulate keyboards in pico_display.c
 extern void PollInput(void);
-extern PicoButton picoButtonTable[NUM_BUTTONS_TO_TEST];
+extern int numButtonsToTest;
+extern PicoButton picoButtonTable[];
 
 // Register all input events
 void PollInputEvents(void)
@@ -664,7 +664,7 @@ void PollInputEvents(void)
 
     PollInput();
 
-    for (int i = 0; i < NUM_BUTTONS_TO_TEST; i++)
+    for (int i = 0; i < numButtonsToTest; i++)
     {
         if (picoButtonTable[i].isDown)
         {
@@ -700,52 +700,9 @@ extern void InitInput(void);
 // Initialise display drivers via pico_display.c
 extern void InitDisplay(unsigned int width, unsigned int height);
 
-#ifdef USE_RGB_LED_AS_DEBUG
-    // Use our copy of an rgb led debug.
-    extern RGBLED* rgb;
-#endif
-
-#ifdef OVERCLOCK
-#include "hardware/vreg.h"
-#include "hardware/clocks.h"
-#endif
-
 // Initialize platform: graphics, inputs and more
 int InitPlatform(void)
 {
-#ifdef OVERCLOCK
-
-#warning "Overclocking is active.  This will set the overclock detect bit on your device and void your warranty.  DO NOT INSTALL IF YOU WANT YOUR WARRANTY."
-    // We use these numbers to show competition with the ESP32, which has a 240MHz clock.
-
-    vreg_set_voltage(VREG_VOLTAGE_1_20);
-    set_sys_clock_khz(250000, true); // This clock was chosen as it prevents the SPI clock from dividing badly.
-    sleep_ms(200); // For stability of the voltage regulator.
-
-    // Force the peripheral clock to be half the CPU. This will also force SPI to be as high as it can go.
-    // Consequently, we prevent overclocks past 250mhz.
-    uint32_t freq = clock_get_hz(clk_sys);
-    clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, freq, freq);
-
-#endif
-
-    stdio_init_all();
-
-#ifdef USE_USB_CONSOLE_OUT
-    // Using the same pins does not matter.
-#ifdef USE_RGB_LED_AS_DEBUG
-    rgb = InitRGBLED(PICO_DISPLAY_LED_R, PICO_DISPLAY_LED_G, PICO_DISPLAY_LED_B);
-#endif
-
-    while (!stdio_usb_connected())
-    {
-        SHOW_LED_WAITING_FOR_USB;
-        sleep_ms(250);
-        SHOW_NO_LED;
-        sleep_ms(250);
-    }
-#endif
-
     // We need to override the core resolutions, so that rcore.c sets the render res correctly before initializing RLSW.
     SetWindowMinSize(0, 0);
     SetWindowMaxSize(1366, 768); // Maximum amount of PSRAM usage.
@@ -757,20 +714,12 @@ int InitPlatform(void)
     CORE.Window.currentFbo.width = CORE.Window.screen.width;
     CORE.Window.currentFbo.height = CORE.Window.screen.height;
 
-    // TODO: Check display, device and context activation
-    //----------------------------------------------------------------------------
-
-    // If everything worked as expected, continue
-
     InitInput();
 
     // Manually InitTimer();
     CORE.Time.previous = GetTime(); // Get time as double
 
-    // TODO: Initialize storage system
-    //----------------------------------------------------------------------------
-    //CORE.Storage.basePath = GetWorkingDirectory();
-    //----------------------------------------------------------------------------
+    CORE.Storage.basePath = GetWorkingDirectory();
 
     CORE.Window.ready = true;
 
