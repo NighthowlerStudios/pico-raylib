@@ -41,7 +41,7 @@ If need be this section may be extended in the future.
 
 # Hardware Support TODO Checklist
 
-- [x] Pimoroni VGA Demo
+- [ ] Pimoroni VGA Demo
 - [ ] Pimoroni DVI Demo
 - [x] Pimoroni Display Pack 2.8
 - [x] Pimoroni Display Pack 1.14
