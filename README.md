@@ -10,11 +10,11 @@ First, git clone this repository somewhere you will easily remember for your pro
 
 In your project CMake, add_subdirectory() to the path you pulled this git repository to.  At the end of it make sure to use
 ```
-    pico_enable_filesystem(example AUTO_INIT FALSE)
+    if(SD_CARD)
+        pico_enable_filesystem(fs_init_example FS_INIT "pico-vfs/examples/fs_inits/fs_init_fat_sdcard.c")
+    endif()
     pico_add_extra_outputs(example)
 ```
-
-The enable file system one is optional.  If you don't use it, all file operations will return error 22 instead.
 
 Every dependency gets pulled from their respective git repositories automatically.  You just need to expect the disk usage to go up on first CMake configure.  Internet is required to update the submodules during that time.  Afterward it is no longer needed.
 
