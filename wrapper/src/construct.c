@@ -1,11 +1,8 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "filesystem/vfs.h"
 
-void InitPicoRaylib(void) __attribute__((constructor));
-
-// Declare fs_init from pico-vfs (weak symbol)
-extern bool fs_init(void);
+// Use priority so this init occurs before filesystem does.  That way we can capture the logs.
+void InitPicoRaylib(void) __attribute__((constructor(100)));
 
 #ifdef OVERCLOCK
 #include "hardware/vreg.h"
@@ -55,14 +52,6 @@ void InitPicoRaylib(void)
 #endif
 
     printf("[DEVICE] Pico System initialised.\n");
-
-    // Initialize filesystem after stdio is ready
-    fs_init();
-
-#ifdef SD_CARD
-    // Overclock is stable now.  Init SD card mounts.
-
-#endif
 
     // TODO: Allow PC to communicate with Flash on BOOTSEL, then unfreeze raylib after BOOTSEL again.
 }

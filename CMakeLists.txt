@@ -140,15 +140,9 @@ set(raylib_defs
     SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
 )
 
-# Use half of flash for disk.
 if ((RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2") OR (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2_W"))
     list(APPEND raylib_defs 
         SFE_RP2350_XIP_CSI_PIN=PIMORONI_PICO_PLUS2_PSRAM_CS_PIN
-        PICO_FS_DEFAULT_SIZE=8388608  # 8MB filesystem partition, Pimoroni Pico 2 plus has 16MB of flash.
-    )
-else()
-    list(APPEND raylib_defs 
-        PICO_FS_DEFAULT_SIZE=2097152  # 2MB filesystem partition, since the Pico 2 comes with 4MB of flash.
     )
 endif()
 
@@ -162,10 +156,12 @@ if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
         PICO_AUDIO_I2S_DATA_PIN=12
         PICO_AUDIO_I2S_CLOCK_PIN_BASE=13
 
-        # SD Card
-        PICO_SD_CLK_PIN=5
-        PICO_SD_CMD_PIN=18
-        PICO_SD_DAT0_PIN=19
+        # SD Card (SPI-based)
+        PICO_DEFAULT_SPI=0
+        PICO_DEFAULT_SPI_SCK_PIN=34
+        PICO_DEFAULT_SPI_TX_PIN=35
+        PICO_DEFAULT_SPI_RX_PIN=32
+        PICO_DEFAULT_SPI_CSN_PIN=33
     )
 endif()
 
@@ -253,13 +249,10 @@ target_sources(pico_raylib INTERFACE
 
 add_subdirectory("sparkfun-pico/sparkfun_pico")
 
-# This is allowed because it can mount to Flash as well.
+# We don't support flash storage, too many XIP conflicts.
+if(SD_CARD)
 add_subdirectory("pico-vfs")
-
-# Add filesystem implementation directly to pico_raylib
-target_sources(pico_raylib INTERFACE
-    "pico-vfs/src/filesystem/fs_init.c"
-)
+endif()
 
 target_include_directories(pico_raylib INTERFACE
     "wrapper/include" # Force our stubs to override raylib
@@ -275,11 +268,6 @@ set(pico_libraries
     pico_double
     pico_rand # Init random seed, for now.
 
-    # File system.
-    blockdevice_flash
-    filesystem_littlefs
-    filesystem_vfs
-
     # Replace default allocators with PSRAM ones.
     sparkfun_pico
 
@@ -287,6 +275,15 @@ set(pico_libraries
     hardware_sleep #pico-extras
     hardware_sleep_headers #pico-extras
 )
+
+if (SD_CARD)
+    list(APPEND pico_libraries
+        blockdevice_sd
+        filesystem_fat
+        filesystem_littlefs
+        filesystem_vfs
+    )
+endif()
 
 if (MULTICORE)
     list(APPEND pico_libraries
@@ -349,10 +346,13 @@ if (BUILD_EXAMPLE)
     
     add_executable(example "example/example.c")
 
-    target_link_libraries(example 
+    target_link_libraries(example PRIVATE 
         pico_raylib
     )
 
+    if(SD_CARD)
+        pico_enable_filesystem(fs_init_example FS_INIT "pico-vfs/examples/fs_inits/fs_init_fat_sdcard.c")
+    endif()
     pico_add_extra_outputs(example)
 endif()
 
@@ -408,10 +408,6 @@ if (BUILD_RAYLIB_EXAMPLES)
         list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/others/embedded_files_loading.c)
         list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/textures/textures_sprite_button.c)
         list(REMOVE_ITEM example_sources ${CMAKE_CURRENT_SOURCE_DIR}/raylib/examples/textures/textures_sprite_explosion.c)
-    endif()
-
-    if (NOT SD_CARD)
-        # TODO
     endif()
 
     include_directories(BEFORE SYSTEM "raylib/examples/others/external/include")

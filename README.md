@@ -8,7 +8,15 @@ A wrapper port of Raylib to boards with RP2350 and PSRAM
 # How to use
 First, git clone this repository somewhere you will easily remember for your project.
 
-In your project CMake, add_subdirectory() to the path you pulled this git repository to.  There's nothing else you need to do at all to start coding like any typical Raylib codebase; every dependency gets pulled from their respective git repositories automatically.  You just need to expect the disk usage to go up on first CMake configure.  Internet is required to update the submodules during that time.  Afterward it is no longer needed.
+In your project CMake, add_subdirectory() to the path you pulled this git repository to.  At the end of it make sure to use
+```
+    pico_enable_filesystem(example AUTO_INIT FALSE)
+    pico_add_extra_outputs(example)
+```
+
+The enable file system one is optional.  If you don't use it, all file operations will return error 22 instead.
+
+Every dependency gets pulled from their respective git repositories automatically.  You just need to expect the disk usage to go up on first CMake configure.  Internet is required to update the submodules during that time.  Afterward it is no longer needed.
 
 Set your CMake options as necessary.  This is mostly in regards to `RAYLIB_DISPLAY` and `RAYLIB_BOARD` as options.  It's recommended to do this via the CMake GUI.
 

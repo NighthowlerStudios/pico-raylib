@@ -12,4 +12,4 @@
 	url = https://github.com/RaspberryPi/pico-extras
 [submodule "pico-vfs"]
 	path = pico-vfs
-	url = https://github.com/oyama/pico-vfs
+	url = https://github.com/NighthowlerStudios/pico-vfs
