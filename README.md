@@ -16,11 +16,6 @@ All of your code should remain like you're using Raylib on any other machine.  Y
 
 A new header called `pico_display.h` should also be ready.  Include this so that you can control the RGBLED, screen orientation and display backlight.  You can check what's available by looking in the `optionals` folder then selecting the display you chose in the CMake options.
 
-# Differences
-Unlike the typical operating system and hardware, the Pico 2 cannot initialize stdio UART nor USB communication until *after* the overclock is stabilized.  This is because it runs on a separate clock.  Due to this, printf() (includes TRACELOG()) and others will not be allowed to do anything until after InitWindow() (they will return quietly without an error).  This may require code changes on your end.
-
-Similarly, file system initialization is tucked away inside of InitWindow as well.  This is so that the user doesn't have to initialize the file system themselves, and let the wrapper handle all of that.  This means you shouldn't require any code changes to support read/writes from sdcard or onboard flash, unless you were trying to read or write files before InitWindow.
-
 # Contributing
 This is in regards to adding a new platform such as a pico board or a display output to this system.
 
