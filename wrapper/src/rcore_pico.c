@@ -664,6 +664,8 @@ void PollInputEvents(void)
 
     PollInput();
 
+#ifdef RAY_BUTTON_IMPLEMENTATION
+
     for (int i = 0; i < numButtonsToTest; i++)
     {
         if (picoButtonTable[i].isDown)
@@ -683,11 +685,13 @@ void PollInputEvents(void)
             CORE.Input.Keyboard.currentKeyState[picoButtonTable[i].key] = 0;
         }
     }
+#endif
 
     if (CORE.Input.Keyboard.currentKeyState[CORE.Input.Keyboard.exitKey]) 
     {
         CORE.Window.shouldClose = true;
     }
+
 }
 
 //----------------------------------------------------------------------------------
