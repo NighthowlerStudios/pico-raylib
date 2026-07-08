@@ -10,7 +10,7 @@
 
 inline const char* GetMonitorDeviceName(void) { return "Pimoroni Pico Display Pack 1.14\""; }
 
-// Comparison table.
+// Comparison table.  ONLY USE IF RAY BUTTON INCLUDED, otherwise delete.
 PicoButton picoButtonTable[] = {
     { KEY_A, PICO_DISPLAY_BUTTON_A, false },
     { KEY_B, PICO_DISPLAY_BUTTON_B, false },

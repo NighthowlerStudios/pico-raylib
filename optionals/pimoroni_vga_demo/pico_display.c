@@ -7,8 +7,6 @@
 
 inline const char* GetMonitorDeviceName(void) { return "Pimoroni VGA Demo\""; }
 
-int numButtonsToTest = 0;
-
 int GetHardwareResolutionWidth()
 {
     if (currentOrientation == PORTRAIT || currentOrientation == INVERTED_PORTRAIT)
@@ -57,20 +55,26 @@ void PollInput(void)
     // VGA Demo doesn't have any buttons.
 }
 
+// Prevent misuse by Raylib user.
+extern void InitVGA(unsigned int width, unsigned int height);
+extern void VGAStartCore1(void);
+extern void FlipVGAFrameBuffer(uint16_t* framebuffer);
+extern void CleanupVGA(void);
+
 // And now expose this functionality to Raylib.
 void InitDisplay(unsigned int width, unsigned int height)
 {
     printf("[DEVICE] Initializing VGA with width %i and height %i...\n", width, height);
 
-    
+    InitVGA(width, height);
 }
 
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
-    // We are always in multicore mode, so no point.
+    FlipVGAFrameBuffer(buffer);
 }
 
 void CleanupDisplay(void)
 {
-    
+    CleanupVGA();
 }

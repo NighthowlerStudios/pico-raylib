@@ -98,6 +98,80 @@ typedef struct Bunny {
 Bunny* bunnies = NULL;
 int bunniesCount = 0;           // Bunnies counter
 bool paused = false;
+
+#ifdef USE_USB_AS_DEBUG
+#include <string.h>
+#include <ctype.h>
+
+// Process incoming serial commands
+void process_serial_commands(void)
+{
+    static char cmd_buffer[256] = {0};
+    static int cmd_pos = 0;
+    
+    // Read one character at a time, non-blocking
+    int ch = getchar_timeout_us(0);
+    while (ch != PICO_ERROR_TIMEOUT)
+    {
+        if (ch == '\n' || ch == '\r')
+        {
+            if (cmd_pos > 0)
+            {
+                cmd_buffer[cmd_pos] = '\0';
+                cmd_pos = 0;
+                
+                // Convert to lowercase for comparison
+                char cmd_lower[256];
+                strcpy(cmd_lower, cmd_buffer);
+                for (int i = 0; cmd_lower[i]; i++) cmd_lower[i] = tolower(cmd_lower[i]);
+                
+                printf("[SERIAL] Received: %s\n", cmd_lower);
+                
+                // Check for "switch" command - cycle to next demo mode
+                if (strstr(cmd_lower, "switch"))
+                {
+                    printf("[SERIAL] Switching modes.\n");
+                    currentMode++;
+                    if (currentMode > WAVING_CUBES)
+                    {
+                        currentMode = SIMPLE_SHAPES;
+                    }
+                }
+                
+                // Check for "bunnies" command - add bunnies
+                if (strstr(cmd_lower, "bunnies"))
+                {
+                    printf("[SERIAL] Adding bunnies.\n");
+                    for (int i = 0; i < 10; i++)
+                    {
+                        if (bunniesCount < MAX_BUNNIES)
+                        {
+                            bunnies[bunniesCount].position.x = GetRandomValue(50, screenWidth - 50);
+                            bunnies[bunniesCount].position.y = GetRandomValue(50, screenHeight - 50);
+                            bunnies[bunniesCount].speed.x = (float)GetRandomValue(-250, 250);
+                            bunnies[bunniesCount].speed.y = (float)GetRandomValue(-250, 250);
+                            bunnies[bunniesCount].color = (Color){ GetRandomValue(50, 240),
+                                                                GetRandomValue(80, 240),
+                                                                GetRandomValue(100, 240), 255 };
+                            bunniesCount++;
+                        }
+                    }
+                }
+            }
+        }
+        else if (ch >= 32 && ch < 127)  // Printable ASCII
+        {
+            if (cmd_pos < (int)sizeof(cmd_buffer) - 1)
+            {
+                cmd_buffer[cmd_pos++] = ch;
+            }
+        }
+        
+        // Try to read next character
+        ch = getchar_timeout_us(0);
+    }
+}
+#endif
 Texture2D texBunny;  // Doesn't contain the data.  RLSW will.
 
 uint16_t __in_flash() bitmapRaybunny [] = {
@@ -338,6 +412,10 @@ int main(void)
     {
         time = GetTime();
         //double currentTime = GetTime();
+
+#ifdef USE_USB_AS_DEBUG
+        process_serial_commands();
+#endif
 
         if (IsKeyPressed(KEY_X) && !switchLock)
         {

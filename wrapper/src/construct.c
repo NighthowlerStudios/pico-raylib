@@ -2,7 +2,7 @@
 #include "pico/stdlib.h"
 
 // Use priority so this init occurs before filesystem does.  That way we can capture the logs.
-void InitPicoRaylib(void) __attribute__((constructor(100)));
+void InitPicoRaylib(void) __attribute__((constructor(1000)));
 
 #ifdef OVERCLOCK
 #include "hardware/vreg.h"

@@ -96,7 +96,8 @@ cmake_dependent_option(
     USE_RGB_LED_AS_DEBUG
     "Use the RGBLED to show what state the renderer is in."
     OFF # The below is true, this option is now configurable
-    [[NOT RAYLIB_DISPLAY STREQUAL "Waveshare_Pico_LCD_1.3"]]
+    [[NOT RAYLIB_DISPLAY STREQUAL "Waveshare_Pico_LCD_1.3"
+    OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo"]]
     OFF # The above is false, this option is now locked to OFF
 )
 
@@ -149,8 +150,11 @@ endif()
 if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
     list(APPEND raylib_defs 
         # VGA
+        HAS_VGA_CORE1_STARTUP=1
         PICO_SCANVIDEO_COLOR_PIN_BASE=0
-        PICO_SCANVIDEO_SYNC_PIN_BASE=8
+        PICO_SCANVIDEO_SYNC_PIN_BASE=16
+        PICO_SCANVIDEO_ALPHA_PIN=31 # Effectively disable.
+        PICO_SCANVIDEO_SCANLINE_BUFFER_COUNT=2 # Minimize memory: default is 8 (~45KB)
 
         # Audio
         PICO_AUDIO_I2S_DATA_PIN=12
@@ -351,7 +355,7 @@ if (BUILD_EXAMPLE)
     )
 
     if(SD_CARD)
-        pico_enable_filesystem(fs_init_example FS_INIT "pico-vfs/examples/fs_inits/fs_init_fat_sdcard.c")
+        pico_enable_filesystem(example FS_INIT "pico-vfs/examples/fs_inits/fs_init_fat_sdcard.c")
     endif()
     pico_add_extra_outputs(example)
 endif()

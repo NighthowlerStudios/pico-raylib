@@ -544,12 +544,27 @@ extern void swSwapColorBuffers();
 // In R5G6B5 format, transmit the buffer via pico_display.c.  Block raylib in here if we're waiting for Core 1 to finish.
 extern void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight);
 
+#ifdef HAS_VGA_CORE1_STARTUP
+// Deferred Core 1 startup for VGA (after rlsw buffers allocated)
+extern void VGAStartCore1(void);
+#endif
+
 // Swap back buffer with front buffer (screen drawing)
 void SwapScreenBuffer(void)
 {
+#ifdef HAS_VGA_CORE1_STARTUP
+    static bool vgaCoreStarted = false;
+    if (!vgaCoreStarted) {
+        printf("[DEVICE] Calling VGA Start...\n");
+        VGAStartCore1();
+        vgaCoreStarted = true;
+    }
+#endif
+
     int swWidth;
     int swHeight;
     uint16_t* swFramebuffer = (uint16_t*)swGetColorBuffer(&swWidth, &swHeight);
+    
     if (!swFramebuffer || swWidth != CORE.Window.screen.width || swHeight != CORE.Window.screen.height)
     {
         TRACELOG(LOG_ERROR, "SwapScreenBuffer() failed: software framebuffer not available or size mismatch");
@@ -559,7 +574,6 @@ void SwapScreenBuffer(void)
 #ifdef MULTICORE
     swSwapColorBuffers();
 #endif
-    //printf("Width: %i, Height: %i", swWidth, swHeight);
     FlipBuffer(swFramebuffer, swWidth, swHeight);
 }
 
@@ -636,7 +650,10 @@ const char *GetKeyName(int key)
 // Emulate keyboards in pico_display.c
 extern void PollInput(void);
 extern int numButtonsToTest;
+
+#ifdef RAY_BUTTON_IMPLEMENTATION
 extern PicoButton picoButtonTable[];
+#endif
 
 // Register all input events
 void PollInputEvents(void)
@@ -714,9 +731,15 @@ int InitPlatform(void)
 
     InitDisplay(CORE.Window.screen.width, CORE.Window.screen.height);
 
+    // Ensure render dimensions are set (if not set by platform, use screen dimensions)
+    if (CORE.Window.render.width == 0 || CORE.Window.render.height == 0) {
+        CORE.Window.render.width = CORE.Window.screen.width;
+        CORE.Window.render.height = CORE.Window.screen.height;
+    }
+
     // Initialize currentFbo to the render dimensions for BeginMode3D calculations
-    CORE.Window.currentFbo.width = CORE.Window.screen.width;
-    CORE.Window.currentFbo.height = CORE.Window.screen.height;
+    CORE.Window.currentFbo.width = CORE.Window.render.width;
+    CORE.Window.currentFbo.height = CORE.Window.render.height;
 
     InitInput();
 
