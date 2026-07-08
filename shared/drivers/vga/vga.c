@@ -70,6 +70,7 @@ void InitVGA(unsigned int initWidth, unsigned int initHeight)
         height = 240;
     }
     
+    // TODO: This might be wrong.  we really need scanlines to be processed in SRAM.
     // NOTE: scanvideo_setup() and Core 1 launch deferred to VGAStartCore1()
     // This ensures rlsw buffer allocation completes before scanvideo initialization
 }
