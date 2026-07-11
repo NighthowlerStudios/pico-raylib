@@ -53,4 +53,4 @@ If need be this section may be extended in the future.
 - [ ] Pimoroni DVI Demo
 - [x] Pimoroni Display Pack 2.8
 - [x] Pimoroni Display Pack 1.14
-- [x] Waveshare Pico LCD 1.3
+- [ ] Waveshare Pico LCD 1.3
