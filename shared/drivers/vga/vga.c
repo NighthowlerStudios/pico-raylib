@@ -9,9 +9,8 @@ static uint width = 320;
 static uint height = 240;
 
 // Note: frameBufferNext is set by Core 0 via FIFO
-// Core 1 receives it at scanline 0 when frameSwapPending is set
+// Core 1 receives it at frame boundaries for stable frame-locked synchronization
 static const scanvideo_mode_t *vga_mode = NULL;
-static uint16_t* frameBuffer = NULL;        // Current framebuffer being rendered
 
 // Core 1 function to run scanvideo rendering loop
 static void __not_in_flash_func(vga_core1_main)(void) {
@@ -26,7 +25,6 @@ static void __not_in_flash_func(vga_core1_main)(void) {
     
     scanvideo_scanline_buffer_t *scanline_buffer = NULL;
     uint16_t last_frame = 0xFFFF;
-    uint frame_count = 0;
     uint16_t* current_render_buffer = NULL;  // Buffer being rendered for current frame
     
     // TODO: actually draw the current buffer.  don't unlock that buffer until raylib says it's done with the next one.  
@@ -37,32 +35,36 @@ static void __not_in_flash_func(vga_core1_main)(void) {
         uint16_t frame_id = scanvideo_frame_number(scanline_buffer->scanline_id);
         uint16_t scanline_id = scanvideo_scanline_number(scanline_buffer->scanline_id);
         
-        // Check for new framebuffer at scanline 0 (non-blocking)
-        if (scanline_id == 0 && multicore_fifo_rvalid()) {
-            current_render_buffer = (uint16_t*)multicore_fifo_pop_blocking();
-            frameBuffer = current_render_buffer;
+        // Swap buffers at frame boundaries (frame_id only changes at scanline 0)
+        if (frame_id != last_frame) {
+            last_frame = frame_id;
+            
+            // Drain any pending buffers from FIFO at frame boundary
+            while (multicore_fifo_rvalid()) {
+                // Swap to the newest in the queue.
+                current_render_buffer = (uint16_t*)multicore_fifo_pop_blocking();
+            }
         }
         
         uint16_t* tokens = (uint16_t*)scanline_buffer->data;
         uint32_t token_idx = 0;
         
         // If framebuffer is available, render it; otherwise render blank scanline
-        if (frameBuffer) {
+        if (current_render_buffer) {
             // Calculate the offset into the framebuffer for this scanline
             // OpenGL buffers are vertically flipped, so read from bottom to top
             uint32_t fb_scanline_id = height - 1 - scanline_id;
             uint32_t scanline_offset = fb_scanline_id * width;
-            uint16_t* scanline_data = frameBuffer + scanline_offset;
+            uint16_t* scanline_data = current_render_buffer + scanline_offset;
             
             // Use TOKEN_RAW_RUN to encode the entire scanline as individual pixels
             // This avoids complexity with multiple COLOR_RUN tokens
             tokens[token_idx++] = 7;      // TOKEN_RAW_RUN
             tokens[token_idx++] = width - 3;  // Number of pixels - 3
             
-            // Copy all pixel data directly
-            for (uint32_t i = 0; i < width; i++) {
-                tokens[token_idx++] = scanline_data[i];
-            }
+            // Copy all pixel data directly using memcpy for efficiency
+            memcpy(&tokens[token_idx], scanline_data, width * sizeof(uint16_t));
+            token_idx += width;
             
             // Add TOKEN_EOL_ALIGN in the high halfword
             tokens[token_idx++] = 1;  // TOKEN_EOL_ALIGN
@@ -73,10 +75,8 @@ static void __not_in_flash_func(vga_core1_main)(void) {
             // Framebuffer not yet set - render blank scanline
             tokens[0] = 7;      // TOKEN_RAW_RUN
             tokens[1] = width - 3;  // width - 3
-            // Fill rest with black pixels
-            for (uint32_t i = 0; i < width; i++) {
-                tokens[2 + i] = 0x0000;
-            }
+            // Fill rest with black pixels using memset for efficiency
+            memset(&tokens[2], 0x0000, width * sizeof(uint16_t));
             tokens[2 + width] = 1;  // TOKEN_EOL_ALIGN
             scanline_buffer->data_used = (2 + width + 1 + 1) / 2;  // +1 for EOL
         }
