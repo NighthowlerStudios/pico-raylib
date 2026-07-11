@@ -155,6 +155,7 @@ if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
         PICO_SCANVIDEO_SYNC_PIN_BASE=16
         PICO_SCANVIDEO_ALPHA_PIN=31 # Effectively disable.
         PICO_SCANVIDEO_SCANLINE_BUFFER_COUNT=2 # Minimize memory: default is 8 (~45KB)
+        PICO_SCANVIDEO_MAX_SCANLINE_BUFFER_WORDS=165 # Don't need more than this since VGA is locked to 320x240
 
         # Audio
         PICO_AUDIO_I2S_DATA_PIN=12

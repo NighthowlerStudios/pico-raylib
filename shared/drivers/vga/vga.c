@@ -13,10 +13,7 @@ static uint height = 240;
 static const scanvideo_mode_t *vga_mode = NULL;
 
 // Core 1 function to run scanvideo rendering loop
-static void __not_in_flash_func(vga_core1_main)(void) {
-    printf("[VGA] Core 1 started\n");
-    fflush(stdout);
-    
+static void __not_in_flash_func(vga_core1_main)(void) {    
     // Initialize scanvideo on Core 1 (this core handles the video IRQs)
     if (vga_mode) {
         scanvideo_setup(vga_mode);
@@ -60,10 +57,10 @@ static void __not_in_flash_func(vga_core1_main)(void) {
             // Use TOKEN_RAW_RUN to encode the entire scanline as individual pixels
             // This avoids complexity with multiple COLOR_RUN tokens
             tokens[token_idx++] = 7;      // TOKEN_RAW_RUN
-            tokens[token_idx++] = width - 3;  // Number of pixels - 3
+            tokens[token_idx++] = width;  // Number of pixels
             
-            // Copy all pixel data directly using memcpy for efficiency
-            memcpy(&tokens[token_idx], scanline_data, width * sizeof(uint16_t));
+            // Copy all pixel data directly using memcpy with 32-bit alignment
+            memcpy(&tokens[token_idx], scanline_data, (width / 2) * sizeof(uint32_t));
             token_idx += width;
             
             // Add TOKEN_EOL_ALIGN in the high halfword
@@ -74,9 +71,9 @@ static void __not_in_flash_func(vga_core1_main)(void) {
         } else {
             // Framebuffer not yet set - render blank scanline
             tokens[0] = 7;      // TOKEN_RAW_RUN
-            tokens[1] = width - 3;  // width - 3
-            // Fill rest with black pixels using memset for efficiency
-            memset(&tokens[2], 0x0000, width * sizeof(uint16_t));
+            tokens[1] = width;  // Number of pixels
+            // Fill rest with black pixels using memset with 32-bit alignment
+            memset(&tokens[2], 0x00000000, (width / 2) * sizeof(uint32_t));
             tokens[2 + width] = 1;  // TOKEN_EOL_ALIGN
             scanline_buffer->data_used = (2 + width + 1 + 1) / 2;  // +1 for EOL
         }
