@@ -206,6 +206,15 @@ endif()
 if (OVERCLOCK)
     list(APPEND raylib_defs
         OVERCLOCK
+        # Scanvideo needs these clock settings at compile time for proper PLL configuration
+        # We use these clocks to be competitive with the ESP32 whilst giving a good balance for SPI.
+        SYS_CLK_MHZ=250
+        SYS_CLK_VREG_VOLTAGE_MIN=VREG_VOLTAGE_1_20  # VREG_VOLTAGE_1_20 for 250MHz overclock
+        PLL_SYS_REFDIV=1
+        PLL_SYS_FBDIV=125
+        PLL_SYS_VCO_FREQ_HZ=1500000000 # Setup divider to achieve 250mhz
+        PLL_SYS_POSTDIV1=6
+        PLL_SYS_POSTDIV2=1
     )
 endif()
 

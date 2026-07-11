@@ -21,6 +21,7 @@ set(pico_libs
     hardware_dma
     hardware_clocks # Support overclocking.
     hardware_vreg
+    hardware_interp
 
     orientation
 )
