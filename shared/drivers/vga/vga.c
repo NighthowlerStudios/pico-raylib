@@ -36,10 +36,12 @@ static void __not_in_flash_func(vga_core1_main)(void) {
         if (frame_id != last_frame) {
             last_frame = frame_id;
             
-            // Drain any pending buffers from FIFO at frame boundary
-            while (multicore_fifo_rvalid()) {
-                // Swap to the newest in the queue.
+            // Check for new buffer from Core 0 at frame boundary
+            if (multicore_fifo_rvalid()) {
+                // Accept the new buffer
                 current_render_buffer = (uint16_t*)multicore_fifo_pop_blocking();
+                // Send acknowledgment back to Core 0 that we've accepted this buffer at scanline 0
+                multicore_fifo_push_blocking(1);
             }
         }
         
@@ -127,8 +129,13 @@ void VGAStartCore1(void)
 void FlipVGAFrameBuffer(uint16_t* framebuffer)
 {
     // Send framebuffer pointer to Core 1 via FIFO
-    // Core 1 will receive and swap it at scanline 0
+    // This will block if FIFO is full
     multicore_fifo_push_blocking((uintptr_t)framebuffer);
+    
+    // Wait for Core 1 acknowledgment that it has accepted this buffer at scanline 0
+    // This ensures Core 1 has switched to rendering the new buffer before we allow
+    // raylib to modify the old buffer
+    multicore_fifo_pop_blocking();
 }
 
 void CleanupVGA(void)
