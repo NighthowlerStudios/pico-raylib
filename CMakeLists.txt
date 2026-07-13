@@ -353,12 +353,22 @@ target_compile_options(pico_raylib INTERFACE
     -Wno-unused-function
     -Wno-unused-label                           # Software renderer (rlsw.h) has unused labels on previous commits
     -Wno-stringop-truncation                     # Raylib rtext.c TextReplaceBetween
+    -Ofast                                      # Allow unrolling matrix mathematics and forgetting infinities.
 )
 
 if (BUILD_EXAMPLE)
     project(example)
     
     add_executable(example "example/example.c")
+
+    # Explicit include directories for IntelliSense (INTERFACE properties don't propagate fully to IntelliSense)
+    # wrapper/include MUST be first so config.h and rlsw_pico.h are found before raylib.h
+    target_include_directories(example PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/wrapper/include
+        ${CMAKE_CURRENT_LIST_DIR}/raylib/src
+        ${CMAKE_CURRENT_LIST_DIR}/raylib/src/external
+        ${CMAKE_CURRENT_LIST_DIR}/pico-vfs/include
+    )
 
     target_link_libraries(example PRIVATE 
         pico_raylib

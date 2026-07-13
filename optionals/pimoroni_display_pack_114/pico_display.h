@@ -4,8 +4,6 @@
 #define PICO_DISPLAY_H
 
 #include <stdint.h>
-#include <stdbool.h>
-#include "raylib.h"
 
 // Expose these controls to the including library.
 #include "st7789.h"

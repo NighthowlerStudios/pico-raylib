@@ -338,7 +338,7 @@ int main(void)
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
         time = GetTime();
-        //double currentTime = GetTime();
+        uint32_t currentTime = time_us_32();
 
         if (IsKeyPressed(KEY_X) && !switchLock)
         {
@@ -402,7 +402,7 @@ int main(void)
 
         //Only really applicable to single core.
         //Otherwise this shows how much time it takes for the system to hand over the pointer to Core 1.
-        //printf("[EXAMPLE] SPI flip time: %f\n", GetTime() - currentTime);
+        printf("[EXAMPLE] SPI flip time: %i microseconds\n", time_us_32() - currentTime);
     }
 
     // De-Initialization

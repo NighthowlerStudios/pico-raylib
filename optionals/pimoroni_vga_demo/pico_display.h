@@ -4,7 +4,6 @@
 #define PICO_DISPLAY_H
 
 #include <stdint.h>
-#include <stdbool.h>
 
 #include "vga.h"
 
