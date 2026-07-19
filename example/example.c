@@ -136,8 +136,42 @@ uint8_t __in_flash() bitmapRaybunny [] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+// Check for corruption across entire bunny array
+void check_all_bunnies(const char* phase)
+{
+    if (bunniesCount == 0) return;  // Don't check if no bunnies exist
+    
+    for (int i = 0; i < bunniesCount; i++) {
+        int is_corrupted = (bunnies[i].position.x != bunnies[i].position.x) ||
+                          (bunnies[i].position.y != bunnies[i].position.y) ||
+                          (bunnies[i].speed.x != bunnies[i].speed.x) ||
+                          (bunnies[i].speed.y != bunnies[i].speed.y) ||
+                          (fabsf(bunnies[i].position.x) > 60000.0f) ||
+                          (fabsf(bunnies[i].position.y) > 60000.0f) ||
+                          (fabsf(bunnies[i].speed.x) > 30000.0f) ||
+                          (fabsf(bunnies[i].speed.y) > 30000.0f);
+        if (is_corrupted) {
+            printf("[CRITICAL] Corruption at %s (bunniesCount=%d)! Bunny %d at %p: pos=(%.2f, %.2f), speed=(%.2f, %.2f)\n",
+                   phase, bunniesCount, i, (void*)&bunnies[i], bunnies[i].position.x, bunnies[i].position.y, 
+                   bunnies[i].speed.x, bunnies[i].speed.y);
+        }
+    }
+}
+
 void bunnymark_draw(void)
 {
+    static int debug_once = 0;
+    if (!debug_once) {
+        printf("[DEBUG] Bunnies array: %p to %p (%zu bytes)\n",
+               (void*)bunnies, (void*)((uintptr_t)bunnies + MAX_BUNNIES * sizeof(Bunny)), 
+               MAX_BUNNIES * sizeof(Bunny));
+        printf("[DEBUG] texBunny at %p (id=%u, %dx%d)\n", 
+               (void*)&texBunny, texBunny.id, texBunny.width, texBunny.height);
+        debug_once = 1;
+    }
+    
+    check_all_bunnies("START_DRAW");
+    
     ClearBackground(RAYWHITE);
 
     for (int i = 0; i < bunniesCount; i++)
@@ -146,6 +180,8 @@ void bunnymark_draw(void)
         DrawTexture(texBunny, (int)bunnies[i].position.x, (int)bunnies[i].position.y, bunnies[i].color);
     }
 
+    check_all_bunnies("END_DRAW");
+    
     DrawRectangle(0, 0, screenWidth, 40, BLACK);
     DrawText(TextFormat("bunnies: %i", bunniesCount), 120, 10, 20, GREEN);
 
@@ -154,6 +190,8 @@ void bunnymark_draw(void)
 
 void bunnymark_update(void)
 {
+    check_all_bunnies("START_UPDATE");
+    
     if (IsKeyPressed(KEY_A))
     {
         // Create more bunnies
@@ -176,26 +214,27 @@ void bunnymark_update(void)
     // Update bunnies
     for (int i = 0; i < bunniesCount; i++)
     {
-        bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime();
-        bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime();
+        float dt = GetFrameTime();
+        bunnies[i].position.x += bunnies[i].speed.x * dt;
+        bunnies[i].position.y += bunnies[i].speed.y * dt;
 
         if (((bunnies[i].position.x + (float)texBunny.width/2) > GetScreenWidth()) ||
             ((bunnies[i].position.x + (float)texBunny.width/2) < 0)) 
         {
             bunnies[i].speed.x *= -1;
             // Force to re-enter boundary
-            bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime() * 2;
-            bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime() * 2;
+            bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime();
         }
         if (((bunnies[i].position.y + (float)texBunny.height/2) > GetScreenHeight()) ||
             ((bunnies[i].position.y + (float)texBunny.height/2 - 40) < 0)) 
         {
             bunnies[i].speed.y *= -1;
             // Force to re-enter boundary
-            bunnies[i].position.x += bunnies[i].speed.x*GetFrameTime() * 2;
-            bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime() * 2;
+            bunnies[i].position.y += bunnies[i].speed.y*GetFrameTime();
         }
     }
+    
+    check_all_bunnies("END_UPDATE");
 }
 
 Camera3D camera = { 0 };
@@ -291,7 +330,12 @@ int main(void)
     };
 
     texBunny = LoadTextureFromImage(imgBunny);
-    bunnies = (Bunny*)RL_MALLOC(MAX_BUNNIES*sizeof(Bunny));    // Bunnies array
+    
+    // Allocate in SRAM, not PSRAM
+    // Use static allocation to guarantee SRAM placement
+    static Bunny static_bunnies[MAX_BUNNIES];
+    bunnies = static_bunnies;
+    //bunnies = RL_MALLOC(sizeof(Bunny) * MAX_BUNNIES);
 
     camera.position = (Vector3){ 30.0f, 20.0f, 30.0f }; // Camera position
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
@@ -315,6 +359,12 @@ int main(void)
             if (currentMode > WAVING_CUBES)
             {
                 currentMode = SIMPLE_SHAPES;
+            }
+            
+            if (currentMode == BUNNIES) {
+                printf("[DEBUG] ENTERING BUNNIES MODE: Bunny 8 at %p pos=(%.2f, %.2f) speed=(%.2f, %.2f)\n",
+                       (void*)&bunnies[8], bunnies[8].position.x, bunnies[8].position.y,
+                       bunnies[8].speed.x, bunnies[8].speed.y);
             }
 
             switchLock = true;
@@ -340,6 +390,11 @@ int main(void)
                 break;
         }
 
+        // Check for corruption between update and draw
+        if (currentMode == BUNNIES) {
+            check_all_bunnies("BETWEEN_UPDATE_DRAW");
+        }
+
         // Draw
 
         BeginDrawing();
@@ -358,9 +413,6 @@ int main(void)
                     break;
             }            
         EndDrawing();
-
-        // The most important benchmark for our hardware acceleration optimizations.
-        printf("[EXAMPLE] Draw time: %f\n", GetFrameTime());
     }
 
     // De-Initialization

@@ -364,7 +364,7 @@ target_compile_options(pico_raylib INTERFACE
     -Wno-unused-function
     -Wno-unused-label                           # Software renderer (rlsw.h) has unused labels on previous commits
     -Wno-stringop-truncation                     # Raylib rtext.c TextReplaceBetween
-    -Ofast                                      # Allow unrolling matrix mathematics and forgetting infinities.
+    -Ofast                                      # Allow unrolling matrix mathematics and forgetting infinities, around 30% speed up in worst cases.
 )
 
 if (BUILD_EXAMPLE)
