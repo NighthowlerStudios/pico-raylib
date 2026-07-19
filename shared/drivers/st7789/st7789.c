@@ -124,6 +124,29 @@ void commandNoString(uint8_t commandChar)
     command(commandChar, 0, NULL); 
 }
 
+// DMA variant of command for large data (framebuffer)
+// Starts DMA transfer and returns immediately without blocking
+void command_dma(uint8_t commandChar, int len, const char* data) {
+    gpio_put(DC, 0); // command mode
+    gpio_put(CS, 0);
+    
+    // Send command byte using blocking SPI (small, so it's fine)
+    spi_write_blocking(spi, &commandChar, 1);
+    
+    if (data && len > 0) {
+        gpio_put(DC, 1); // data mode
+        
+        // DMA is already configured in InitST7789(), just update the source and count
+        dma_channel_set_read_addr(st_dma, data, false);
+        dma_channel_set_trans_count(st_dma, len, true);  // true = start immediately
+        
+        // Return immediately - DMA runs in background
+    } else {
+        // No data to transfer, release CS immediately
+        gpio_put(CS, 1);
+    }
+}
+
 #include <math.h>
 
 void SetBacklight(uint8_t brightness) {
@@ -134,7 +157,18 @@ void SetBacklight(uint8_t brightness) {
     pwm_set_gpio_level(PWM, value);
 }
 
-#ifdef MULTICORE
+void LockDMA()
+{
+    // Hand ownership of the DMA channel to the caller.
+    st_dma = dma_claim_unused_channel(true);
+    dma_channel_config config = dma_channel_get_default_config(st_dma);
+    channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
+    channel_config_set_bswap(&config, false);
+    channel_config_set_dreq(&config, spi_get_dreq(spi, true));
+    dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
+}
+
+#ifdef MULTICORE_VIDEO_OUTPUT
 
 // We use lazy scheduling in here because the framebuffer is read-only on core 2 anyway.
 #include "pico/mutex.h"
@@ -144,10 +178,11 @@ static mutex_t frameBufferMutex;
 
 void Core1FlipBuffer(void)
 {
+    // TODO: LockDMA().  The problem is framerates are unstable with it.
+    // There is very little use of putting video over here on SPI displays.  Consider this approach abandoned.
     while(true)
     {
-        //float currentTime = GetTime();
-
+        // Pop buffer OUTSIDE mutex to avoid deadlock
         uintptr_t buffer_ptr = (uintptr_t)multicore_fifo_pop_blocking();
         uint32_t dimensions = multicore_fifo_pop_blocking();
         int currentWidth = (int)(dimensions >> 16);
@@ -156,17 +191,12 @@ void Core1FlipBuffer(void)
 
         //printf("[DEVICE] Current Buffer Pointer: %x\n", currentBuffer);
 
-        // Core 1 owns the mutex while transferring the framebuffer over SPI.
+        // Core 1 owns the mutex while managing the DMA transfer
         mutex_enter_blocking(&frameBufferMutex);
-
-        // Only benchmark the actual communication time, not the time waiting for Core 0.
-        // This is pretty much a fixed number.  
-        // On a 250mhz core overclock, spi periclock totals to about 0.023380 seconds.  Gives us a theoretical ceiling of 43 fps.
-        // However on the original 150mhz core overclock, spi periclock gets us about 0.19870 seconds.  Gives us a theoretical ceiling of 50 fps.
-        //float currentTime = GetTime();
+        
+        // Start 
         command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
-        //printf("[DEVICE] SPI output time: %f\n", GetTime() - currentTime);
-
+        
         mutex_exit(&frameBufferMutex);
     }
 }
@@ -190,16 +220,13 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     gpio_set_function(SCK, GPIO_FUNC_SPI);
     gpio_set_function(MOSI, GPIO_FUNC_SPI);
 
-    // printf("[ST7789] Claiming DMA Channel for LCD SPI.\n");
+    printf("[ST7789] Claiming DMA Channel for LCD SPI.\n");
 
-    // TODO: figure out why using DMA is actually just corrupting the output, beyond bus contention issues.
-    // NOTE: We remain synchronous instead.  Using Core 1 helps.
-    // st_dma = dma_claim_unused_channel(true);
-    // dma_channel_config config = dma_channel_get_default_config(st_dma);
-    // channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
-    // channel_config_set_bswap(&config, false);
-    // channel_config_set_dreq(&config, spi_get_dreq(spi, true));
-    // dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
+    // Don't consume this channel on the wrong core.
+    // Otherwise, only enable DMA if we have a backbuffer.
+#if !defined(MULTICORE_VIDEO_OUTPUT) && defined(RLSW_BACKBUFFER)
+    LockDMA();
+#endif
 
     gpio_set_function(DC, GPIO_FUNC_SIO);
     gpio_set_dir(DC, GPIO_OUT);
@@ -375,10 +402,10 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     }
 
     // Create the mutex and initialize Core 1.
-#ifdef MULTICORE
+#ifdef MULTICORE_VIDEO_OUTPUT
     if (width * height > 320 * 240)
     {
-        printf("[ST7789] [WARNING] LCD SPI is set to use Core 1 instead of 0, but on this display resolution, the depth buffer will likely end up in PSRAM.\n");
+        printf("[ST7789] [WARNING] LCD SPI is set to use Core 1 instead of 0, but on this display resolution, one or more buffers will likely end up in PSRAM.\n");
     }
 
     printf("[ST7789] Setting up Core 1 as SPI instead of Core 0...\n");
@@ -387,14 +414,18 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     multicore_reset_core1();
     multicore_launch_core1(Core1FlipBuffer);
 #else
-    printf("[ST7789] [WARNING] LCD SPI is set to use the same core as Raylib.  Expect serious bottlenecks!\n");
+#if RLSW_BACKBUFFER
+    printf("[ST7789] Using DMA to transmit the framebuffer asynchronously.\n");
+#else
+    printf("[ST7789][WARNING] LCD SPI is set to use the same core as Raylib, without asynchronous DMA.  Memory is saved but performance will suffer with extreme overhead.\n");
+#endif
 #endif
 }
 
 void SendBufferST7789(int width, int height, const char* buffer)
 {
         // Raylib must wait until Core 1 is done transferring the previous buffer.
-#ifdef MULTICORE
+#ifdef MULTICORE_VIDEO_OUTPUT
     //printf("[DEVICE] Frame buffer flipped.  Waiting until Core 1 is done using SPI...\n");
     // We can't just block mutex above launch_core1, because we would deadlock up there at the other enter_blocking
     mutex_enter_blocking(&frameBufferMutex);
@@ -406,13 +437,22 @@ void SendBufferST7789(int width, int height, const char* buffer)
     multicore_fifo_push_blocking(dimensions);
 
     mutex_exit(&frameBufferMutex);
-#else
-    // If this is flashing, that's good!  It means the CPU isn't locked up.
-    
-    // Takes 0.01952 seconds on average 320 x 240 lcd's, but draw time of raylib is quite high.  
-    // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
-    // Once we use core 1 this won't be too additive to frame time, but you'll be hard capped to 43 fps.
-    command(RAMWR, width * height * sizeof(uint16_t), buffer);
+#else    
+        // Takes 0.01952 seconds on average 320 x 240 lcd's, but draw time of raylib is quite high.  
+        // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
+        // The hard cap for the entire transfer is around 43fps, even if DMA is enabled to async it.
+    #ifdef RLSW_BACKBUFFER
+        // Wait for previous DMA transfer to complete if raylib is faster than the display
+        // Note: is_busy is unreliable, so we poll transfer_count instead
+        dma_channel_hw_t *hw = dma_channel_hw_addr(st_dma);
+        while (hw->transfer_count > 0) {
+            tight_loop_contents();
+        }
+        gpio_put(CS, 1);
+        command_dma(RAMWR, width * height * sizeof(uint16_t), buffer);
+    #else
+        command(RAMWR, width * height * sizeof(uint16_t), buffer);
+    #endif
     
 #endif
 }
@@ -426,10 +466,10 @@ void CleanupST7789(void)
     multicore_reset_core1();
 #endif
 
-    // if(dma_channel_is_claimed(st_dma)) {
-    //     dma_channel_abort(st_dma);
-    //     dma_channel_unclaim(st_dma);
-    // }
+    if(dma_channel_is_claimed(st_dma)) {
+        dma_channel_abort(st_dma);
+        dma_channel_unclaim(st_dma);
+    }
 
     spi_deinit(spi);
 

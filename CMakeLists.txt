@@ -82,9 +82,9 @@ cmake_dependent_option(
 
 # The following remain ON because VGA and DVI need a carefully timed core to bit-bang.
 cmake_dependent_option(
-    MULTICORE
-    "Don't use the same core Raylib uses to draw to the LCD.  Required with VGA/DVI"
-    ON # The below is true, this option is now configurable
+    MULTICORE_VIDEO_OUTPUT
+    "Don't use the same core Raylib uses to draw to the LCD.  Required with VGA/DVI.  May uplift USB debug performance on single core displays."
+    OFF # The below is true, this option is now configurable
     [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo" 
     OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_DVI_Breakout"]]
     ON # The above is false, this option is now locked to ON
@@ -98,6 +98,14 @@ cmake_dependent_option(
     [[NOT RAYLIB_DISPLAY STREQUAL "Waveshare_Pico_LCD_1.3"
     OR NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo"]]
     OFF # The above is false, this option is now locked to OFF
+)
+
+cmake_dependent_option(
+    USE_BACKBUFFER
+    "Use a backbuffer to draw to whilst DMA or Core 1 is transmitting the previous buffer to the display.  Disable to save memory."
+    ON # The below is true, this option is now configurable
+    [[NOT MULTICORE_VIDEO_OUTPUT]]
+    ON # The above is false, this option is now locked to ON
 )
 
 include(pico-sdk/pico_sdk_init.cmake)
@@ -140,6 +148,12 @@ set(raylib_defs
     SW_FRAMEBUFFER_DEPTH_TYPE=D16
     SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
 )
+
+if (USE_BACKBUFFER)
+    list(APPEND raylib_defs 
+        RLSW_BACKBUFFER #SPI can use DMA to transmit asynchronously.
+    )
+endif()
 
 if ((RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2") OR (RAYLIB_BOARD STREQUAL "Pimoroni_Pico_Plus2_W"))
     list(APPEND raylib_defs 
@@ -195,10 +209,9 @@ if (USE_RGB_LED_AS_DEBUG)
     )
 endif()
 
-if (MULTICORE)
+if (MULTICORE_VIDEO_OUTPUT)
     list(APPEND raylib_defs
-        MULTICORE
-        RLSW_BACKBUFFER
+        MULTICORE_VIDEO_OUTPUT
     )
 endif()
 
@@ -297,7 +310,7 @@ if (SD_CARD)
     )
 endif()
 
-if (MULTICORE)
+if (MULTICORE_VIDEO_OUTPUT)
     list(APPEND pico_libraries
         pico_multicore
         pico_sync

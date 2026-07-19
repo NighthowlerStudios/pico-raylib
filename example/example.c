@@ -338,7 +338,6 @@ int main(void)
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
         time = GetTime();
-        uint32_t currentTime = time_us_32();
 
         if (IsKeyPressed(KEY_X) && !switchLock)
         {
@@ -372,11 +371,7 @@ int main(void)
                 break;
         }
 
-        // Still useful even though most examples in here do very little maths.
-        //printf("[EXAMPLE] Update time: %f\n", GetTime() - currentTime);
-
         // Draw
-        //currentTime = GetTime();
 
         BeginDrawing();
             switch (currentMode)
@@ -392,17 +387,11 @@ int main(void)
                     break;
                 default:
                     break;
-            }
-
-            // The most important benchmark for our hardware acceleration optimizations.
-            //printf("[EXAMPLE] Draw time: %f\n", GetTime() - currentTime);
-            //currentTime = GetTime();
-            
+            }            
         EndDrawing();
 
-        //Only really applicable to single core.
-        //Otherwise this shows how much time it takes for the system to hand over the pointer to Core 1.
-        printf("[EXAMPLE] SPI flip time: %i microseconds\n", time_us_32() - currentTime);
+        // The most important benchmark for our hardware acceleration optimizations.
+        printf("[EXAMPLE] Draw time: %f\n", GetFrameTime());
     }
 
     // De-Initialization
