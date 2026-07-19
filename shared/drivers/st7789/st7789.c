@@ -190,14 +190,16 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     gpio_set_function(SCK, GPIO_FUNC_SPI);
     gpio_set_function(MOSI, GPIO_FUNC_SPI);
 
-    printf("[ST7789] Claiming DMA Channel for LCD SPI.\n");
+    // printf("[ST7789] Claiming DMA Channel for LCD SPI.\n");
 
-    st_dma = dma_claim_unused_channel(true);
-    dma_channel_config config = dma_channel_get_default_config(st_dma);
-    channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
-    channel_config_set_bswap(&config, false);
-    channel_config_set_dreq(&config, spi_get_dreq(spi, true));
-    dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
+    // TODO: figure out why using DMA is actually just corrupting the output, beyond bus contention issues.
+    // NOTE: We remain synchronous instead.  Using Core 1 helps.
+    // st_dma = dma_claim_unused_channel(true);
+    // dma_channel_config config = dma_channel_get_default_config(st_dma);
+    // channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
+    // channel_config_set_bswap(&config, false);
+    // channel_config_set_dreq(&config, spi_get_dreq(spi, true));
+    // dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
 
     gpio_set_function(DC, GPIO_FUNC_SIO);
     gpio_set_dir(DC, GPIO_OUT);
@@ -424,10 +426,10 @@ void CleanupST7789(void)
     multicore_reset_core1();
 #endif
 
-    if(dma_channel_is_claimed(st_dma)) {
-        dma_channel_abort(st_dma);
-        dma_channel_unclaim(st_dma);
-    }
+    // if(dma_channel_is_claimed(st_dma)) {
+    //     dma_channel_abort(st_dma);
+    //     dma_channel_unclaim(st_dma);
+    // }
 
     spi_deinit(spi);
 
