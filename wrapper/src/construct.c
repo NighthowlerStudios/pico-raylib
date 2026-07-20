@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "hardware/vreg.h"
+#include "hardware/structs/qmi.h"
 
 // Use priority so this init occurs before filesystem does.  That way we can capture the logs.
 void InitPicoRaylib(void) __attribute__((constructor(1000)));
@@ -23,8 +25,8 @@ void InitPicoRaylib(void)
     // We don't need runtime code in here anymore to set core and voltage because CMake is doing it.
 
     // Explicitly bind the peripheral subsystem directly to the 250MHz sys_clk source
-    uint32_t freq = clock_get_hz(clk_sys);
-    clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, freq, freq);
+    //uint32_t freq = clock_get_hz(clk_sys);
+    //clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, freq, freq);
 #endif
 
     stdio_init_all();

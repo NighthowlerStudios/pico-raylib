@@ -232,13 +232,14 @@ if (OVERCLOCK)
         OVERCLOCK
         # Scanvideo needs these clock settings at compile time for proper PLL configuration
         # We use these clocks to be competitive with the ESP32 whilst giving a good balance for SPI.
-        SYS_CLK_MHZ=250
-        SYS_CLK_VREG_VOLTAGE_MIN=VREG_VOLTAGE_1_20  # VREG_VOLTAGE_1_20 for 250MHz overclock
+        SYS_CLK_MHZ=240
+        SYS_CLK_VREG_VOLTAGE_MIN=VREG_VOLTAGE_1_25  # Often stable at 1.20V, use 1.25V if PSRAM drops bits
         PLL_SYS_REFDIV=1
-        PLL_SYS_FBDIV=125
-        PLL_SYS_VCO_FREQ_HZ=1500000000 # Setup divider to achieve 250mhz
+        PLL_SYS_FBDIV=120
+        PLL_SYS_VCO_FREQ_HZ=1440000000              # (12MHz * 120) = 1.44 GHz VCO
         PLL_SYS_POSTDIV1=6
-        PLL_SYS_POSTDIV2=1
+        PLL_SYS_POSTDIV2=1                          # 1.44 GHz / (6 * 1) = 240 MHz
+        PICO_FLASH_SPI_CLKDIV=2                     # Memory bus runs at 120 MHz (240 / 2)
     )
 endif()
 

@@ -106,26 +106,26 @@ bool paused = false;
 Texture2D texBunny;  // Doesn't contain the data.  RLSW will.
 
 // Check for corruption across entire bunny array
-void check_all_bunnies(const char* phase)
-{
-    if (bunniesCount == 0) return;  // Don't check if no bunnies exist
+// void check_all_bunnies(const char* phase)
+// {
+//     if (bunniesCount == 0) return;  // Don't check if no bunnies exist
     
-    for (int i = 0; i < bunniesCount; i++) {
-        int is_corrupted = (bunnies[i].position.x != bunnies[i].position.x) ||
-                          (bunnies[i].position.y != bunnies[i].position.y) ||
-                          (bunnies[i].speed.x != bunnies[i].speed.x) ||
-                          (bunnies[i].speed.y != bunnies[i].speed.y) ||
-                          (fabsf(bunnies[i].position.x) > 60000.0f) ||
-                          (fabsf(bunnies[i].position.y) > 60000.0f) ||
-                          (fabsf(bunnies[i].speed.x) > 30000.0f) ||
-                          (fabsf(bunnies[i].speed.y) > 30000.0f);
-        if (is_corrupted) {
-            printf("[CRITICAL] Corruption at %s (bunniesCount=%d)! Bunny %d at %p: pos=(%.2f, %.2f), speed=(%.2f, %.2f)\n",
-                   phase, bunniesCount, i, (void*)&bunnies[i], bunnies[i].position.x, bunnies[i].position.y, 
-                   bunnies[i].speed.x, bunnies[i].speed.y);
-        }
-    }
-}
+//     for (int i = 0; i < bunniesCount; i++) {
+//         int is_corrupted = (bunnies[i].position.x != bunnies[i].position.x) ||
+//                           (bunnies[i].position.y != bunnies[i].position.y) ||
+//                           (bunnies[i].speed.x != bunnies[i].speed.x) ||
+//                           (bunnies[i].speed.y != bunnies[i].speed.y) ||
+//                           (fabsf(bunnies[i].position.x) > 60000.0f) ||
+//                           (fabsf(bunnies[i].position.y) > 60000.0f) ||
+//                           (fabsf(bunnies[i].speed.x) > 30000.0f) ||
+//                           (fabsf(bunnies[i].speed.y) > 30000.0f);
+//         if (is_corrupted) {
+//             printf("[CRITICAL] Corruption at %s (bunniesCount=%d)! Bunny %d at %p: pos=(%.2f, %.2f), speed=(%.2f, %.2f)\n",
+//                    phase, bunniesCount, i, (void*)&bunnies[i], bunnies[i].position.x, bunnies[i].position.y, 
+//                    bunnies[i].speed.x, bunnies[i].speed.y);
+//         }
+//     }
+// }
 
 void bunnymark_draw(void)
 {
@@ -139,7 +139,7 @@ void bunnymark_draw(void)
         debug_once = 1;
     }
     
-    check_all_bunnies("START_DRAW");
+    //check_all_bunnies("START_DRAW");
     
     ClearBackground(RAYWHITE);
 
@@ -149,7 +149,7 @@ void bunnymark_draw(void)
         DrawTexture(texBunny, (int)bunnies[i].position.x, (int)bunnies[i].position.y, bunnies[i].color);
     }
 
-    check_all_bunnies("END_DRAW");
+    //check_all_bunnies("END_DRAW");
     
     DrawRectangle(0, 0, screenWidth, 40, BLACK);
     DrawText(TextFormat("bunnies: %i", bunniesCount), 120, 10, 20, GREEN);
@@ -159,7 +159,7 @@ void bunnymark_draw(void)
 
 void bunnymark_update(void)
 {
-    check_all_bunnies("START_UPDATE");
+    //check_all_bunnies("START_UPDATE");
     
     if (IsKeyPressed(KEY_A))
     {
@@ -203,7 +203,7 @@ void bunnymark_update(void)
         }
     }
     
-    check_all_bunnies("END_UPDATE");
+    //check_all_bunnies("END_UPDATE");
 }
 
 Camera3D camera = { 0 };
@@ -501,9 +501,9 @@ int main(void)
         }
 
         // Check for corruption between update and draw
-        if (currentMode == BUNNIES) {
-            check_all_bunnies("BETWEEN_UPDATE_DRAW");
-        }
+        // if (currentMode == BUNNIES) {
+        //     check_all_bunnies("BETWEEN_UPDATE_DRAW");
+        // }
 
         // Draw
 
