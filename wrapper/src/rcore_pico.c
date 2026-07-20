@@ -537,7 +537,7 @@ void DisableCursor(void)
 
 // Get it by force from rlsw.h at link time.
 extern void* swGetColorBuffer(int* width, int* height);
-#ifdef RLSW_BACKBUFFER
+#ifdef SW_DOUBLE_BUFFERING
 extern void swSwapColorBuffers();
 #endif
 
@@ -571,7 +571,7 @@ void SwapScreenBuffer(void)
         return;
     }
 
-#ifdef RLSW_BACKBUFFER
+#ifdef SW_DOUBLE_BUFFERING
     swSwapColorBuffers();
 #endif
     FlipBuffer(swFramebuffer, swWidth, swHeight);

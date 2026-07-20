@@ -224,7 +224,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
 
     // Don't consume this channel on the wrong core.
     // Otherwise, only enable DMA if we have a backbuffer.
-#if !defined(MULTICORE_VIDEO_OUTPUT) && defined(RLSW_BACKBUFFER)
+#if !defined(MULTICORE_VIDEO_OUTPUT) && defined(SW_DOUBLE_BUFFERING)
     LockDMA();
 #endif
 
@@ -414,7 +414,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     multicore_reset_core1();
     multicore_launch_core1(Core1FlipBuffer);
 #else
-#if RLSW_BACKBUFFER
+#if SW_DOUBLE_BUFFERING
     printf("[ST7789] Using DMA to transmit the framebuffer asynchronously.\n");
 #else
     printf("[ST7789][WARNING] LCD SPI is set to use the same core as Raylib, without asynchronous DMA.  Memory is saved but performance will suffer with extreme overhead.\n");
@@ -441,7 +441,7 @@ void SendBufferST7789(int width, int height, const char* buffer)
         // Takes 0.01952 seconds on average 320 x 240 lcd's, but draw time of raylib is quite high.  
         // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
         // The hard cap for the entire transfer is around 43fps, even if DMA is enabled to async it.
-    #ifdef RLSW_BACKBUFFER
+    #ifdef SW_DOUBLE_BUFFERING
         // Wait for previous DMA transfer to complete if raylib is faster than the display
         // Note: is_busy is unreliable, so we poll transfer_count instead
         dma_channel_hw_t *hw = dma_channel_hw_addr(st_dma);

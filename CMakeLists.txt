@@ -151,7 +151,7 @@ set(raylib_defs
 
 if (USE_BACKBUFFER)
     list(APPEND raylib_defs 
-        RLSW_BACKBUFFER #SPI can use DMA to transmit asynchronously.
+        SW_DOUBLE_BUFFERING #SPI can use DMA to transmit asynchronously.
     )
 endif()
 
