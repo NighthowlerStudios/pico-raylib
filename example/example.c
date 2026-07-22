@@ -212,7 +212,8 @@ float scale = 0.0f;
 void waving_cubes_draw(void)
 {
     // Specify the amount of blocks in each direction
-    const int numBlocks = 15;
+    const int numBlocks = 9; // Exactly 729 cubes (4,374 triangles, around the N64 "limit" amount of 5,000).  
+    // Not like the 15x15x15 = 3375 cubes in the original example, which is too much for the Pico to handle, and further from real-world.
 
     ClearBackground(RAYWHITE);
 
@@ -234,9 +235,9 @@ void waving_cubes_draw(void)
 
                     // Calculate the cube position
                     Vector3 cubePos = {
-                        (float)(x - (float)numBlocks/2)*(scale*3.0f) + scatter,
-                        (float)(y - (float)numBlocks/2)*(scale*2.0f) + scatter,
-                        (float)(z - (float)numBlocks/2)*(scale*3.0f) + scatter
+                        (float)(x - (float)numBlocks/2)*(scale*5.0f) + scatter,
+                        (float)(y - (float)numBlocks/2)*(scale*5.0f) + scatter,
+                        (float)(z - (float)numBlocks/2)*(scale*5.0f) + scatter
                     };
 
                     // Pick a color with a hue depending on cube position for the rainbow color effect
@@ -246,7 +247,7 @@ void waving_cubes_draw(void)
 
                     // Calculate cube size
                     // Most pico screens are tiny!
-                    float cubeSize = (2.4f - scale)*blockScale * 2;
+                    float cubeSize = (2.4f - scale)*blockScale * 3;
 
                     // And finally, draw the cube!
                     DrawCube(cubePos, cubeSize, cubeSize, cubeSize, cubeColor);
