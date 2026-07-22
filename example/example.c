@@ -392,6 +392,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
 
     // Note: RLSW processes colours on an array of four floats already.  You don't really lose performance since the buffer is truncated on the final pixel set, not the span interpolations.
+    // NOTE: When doing &array to an array in flash, the copy is NOT done in Image.  So UnloadImage is unsafe.
     Image imgBunny = {
         .data = &bitmapRaybunny,
         .width = 32,
@@ -399,9 +400,8 @@ int main(void)
         .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
         .mipmaps = 1
     };
+    // Copy from Flash to PSRAM.
     texBunny = LoadTextureFromImage(imgBunny);
-    //TODO: find reason for these deallocs to fail.
-    //UnloadImage(imgBunny);  // Unload image from RAM, already uploaded to VRAM
 
     Image imgCubicmap = {
         .data = &bitmapCubicmap,
@@ -410,14 +410,13 @@ int main(void)
         .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
         .mipmaps = 1
     };
+    // Copy from Flash to PSRAM.
     cubicmap = LoadTextureFromImage(imgCubicmap);
     
     // Generate the mesh before unloading the image.
     Mesh mesh = GenMeshCubicmap(imgCubicmap, (Vector3){ 1.0f, 1.0f, 1.0f });
     model = LoadModelFromMesh(mesh);
     mapPixels = LoadImageColors(imgCubicmap);  // Get map image data to be used for collision detection
-
-    //UnloadImage(imgCubicmap);  // Unload image from RAM, already uploaded to VRAM
 
     Image imgCubicmapAtlas = {
         .data = &bitmapCubicmapAtlas,
@@ -426,15 +425,11 @@ int main(void)
         .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
         .mipmaps = 1
     };
+    // Copy from Flash to PSRAM.
     cubicmapAtlas = LoadTextureFromImage(imgCubicmapAtlas);
-    //UnloadImage(imgCubicmapAtlas);  // Unload image from RAM, already uploaded to VRAM
 
     model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = cubicmapAtlas;    // Set map diffuse texture
     
-    // Allocate in SRAM, not PSRAM, specifically as workaround until PSRAM corruption is fixed.
-    // Use static allocation to guarantee SRAM placement
-    //static Bunny static_bunnies[MAX_BUNNIES];
-    //bunnies = static_bunnies;
     bunnies = RL_MALLOC(sizeof(Bunny) * MAX_BUNNIES);
 
     camera.position = (Vector3){ 30.0f, 20.0f, 30.0f }; // Camera position
@@ -529,11 +524,11 @@ int main(void)
         printf("[EXAMPLE] Frame time: %f seconds\n", GetFrameTime());
     }
 
-    //UnloadImageColors(mapPixels);   // Unload color array
-    //UnloadModel(model);             // Unload map model
-    //UnloadTexture(cubicmap);        // Unload cubicmap texture
-    //UnloadTexture(cubicmapAtlas);   // Unload cubicmap atlas texture
-    //UnloadTexture(texBunny);        // Unload bunny texture
+    UnloadImageColors(mapPixels);   // Unload color array
+    UnloadModel(model);             // Unload map model
+    UnloadTexture(cubicmap);        // Unload cubicmap texture
+    UnloadTexture(cubicmapAtlas);   // Unload cubicmap atlas texture
+    UnloadTexture(texBunny);        // Unload bunny texture
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
