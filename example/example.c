@@ -307,7 +307,6 @@ void cubicmap_draw(void)
     DrawFPS(10, 10);
 }
 
-Color* mapPixels = NULL;
 Camera3D firstPersonCamera = { 0 };
 int playerCellX = 0;
 int playerCellY = 0;
@@ -342,7 +341,7 @@ void first_person_maze_update(void)
             {
                 // NOTE: Collision: Only checking R channel for white pixel
                 if (((x >= 0) && (x < cubicmap.width)) &&
-                    (mapPixels[y*cubicmap.width + x].r == 255) &&
+                    (bitmapCubicmap[y*cubicmap.width + x] == 255) &&
                     (CheckCollisionCircleRec(playerPos, playerRadius,
                     (Rectangle){ mapPosition.x - 0.5f + x*1.0f, mapPosition.z - 0.5f + y*1.0f, 1.0f, 1.0f })))
                 {
@@ -393,11 +392,12 @@ int main(void)
 
     // Note: RLSW processes colours on an array of four floats already.  You don't really lose performance since the buffer is truncated on the final pixel set, not the span interpolations.
     // NOTE: When doing &array to an array in flash, the copy is NOT done in Image.  So UnloadImage is unsafe.
+    // NOTE: RLSW does not support compressed texture nor image data unless it was loaded by raylib as a file.
     Image imgBunny = {
         .data = &bitmapRaybunny,
         .width = 32,
         .height = 32,
-        .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
+        .format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA,
         .mipmaps = 1
     };
     // Copy from Flash to PSRAM.
@@ -407,16 +407,13 @@ int main(void)
         .data = &bitmapCubicmap,
         .width = 32,
         .height = 16,
-        .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
+        .format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE,
         .mipmaps = 1
     };
     // Copy from Flash to PSRAM.
     cubicmap = LoadTextureFromImage(imgCubicmap);
-    
-    // Generate the mesh before unloading the image.
-    Mesh mesh = GenMeshCubicmap(imgCubicmap, (Vector3){ 1.0f, 1.0f, 1.0f });
-    model = LoadModelFromMesh(mesh);
-    mapPixels = LoadImageColors(imgCubicmap);  // Get map image data to be used for collision detection
+
+    printf("[EXAMPLE] Total allocated after bunny and cubicmap load: %d bytes\n", sfe_mem_used());
 
     Image imgCubicmapAtlas = {
         .data = &bitmapCubicmapAtlas,
@@ -428,7 +425,16 @@ int main(void)
     // Copy from Flash to PSRAM.
     cubicmapAtlas = LoadTextureFromImage(imgCubicmapAtlas);
 
+    printf("[EXAMPLE] Total allocated after maze texture load: %d bytes\n", sfe_mem_used());
+
+    // Generate the maze mesh.
+    // This is very memory intensive, almost 300KB of PSRAM.  Maybe further investigation, but I have a feeling it's just that much data for each triangle...
+    Mesh mesh = GenMeshCubicmap(imgCubicmap, (Vector3){ 1.0f, 1.0f, 1.0f });
+    model = LoadModelFromMesh(mesh);
+    // Don't need to duplicate map pixels for collisions because they're still in flash forever.
     model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = cubicmapAtlas;    // Set map diffuse texture
+
+    printf("[EXAMPLE] Total allocated after maze mesh generate: %d bytes\n", sfe_mem_used());
     
     bunnies = RL_MALLOC(sizeof(Bunny) * MAX_BUNNIES);
 
@@ -524,7 +530,6 @@ int main(void)
         printf("[EXAMPLE] Frame time: %f seconds\n", GetFrameTime());
     }
 
-    UnloadImageColors(mapPixels);   // Unload color array
     UnloadModel(model);             // Unload map model
     UnloadTexture(cubicmap);        // Unload cubicmap texture
     UnloadTexture(cubicmapAtlas);   // Unload cubicmap atlas texture
