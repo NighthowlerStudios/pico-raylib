@@ -129,15 +129,15 @@ Texture2D texBunny;  // Doesn't contain the data.  RLSW will.
 
 void bunnymark_draw(void)
 {
-    static int debug_once = 0;
-    if (!debug_once) {
-        printf("[DEBUG] Bunnies array: %p to %p (%zu bytes)\n",
-               (void*)bunnies, (void*)((uintptr_t)bunnies + MAX_BUNNIES * sizeof(Bunny)), 
-               MAX_BUNNIES * sizeof(Bunny));
-        printf("[DEBUG] texBunny at %p (id=%u, %dx%d)\n", 
-               (void*)&texBunny, texBunny.id, texBunny.width, texBunny.height);
-        debug_once = 1;
-    }
+    // static int debug_once = 0;
+    // if (!debug_once) {
+    //     printf("[DEBUG] Bunnies array: %p to %p (%zu bytes)\n",
+    //            (void*)bunnies, (void*)((uintptr_t)bunnies + MAX_BUNNIES * sizeof(Bunny)), 
+    //            MAX_BUNNIES * sizeof(Bunny));
+    //     printf("[DEBUG] texBunny at %p (id=%u, %dx%d)\n", 
+    //            (void*)&texBunny, texBunny.id, texBunny.width, texBunny.height);
+    //     debug_once = 1;
+    // }
     
     //check_all_bunnies("START_DRAW");
     
@@ -386,7 +386,8 @@ int main(void)
 
     printf("[EXAMPLE] Total allocated after RLSW init: %d bytes\n", sfe_mem_used());
 
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
+    // Set to 40 as a workaround to reduce LCD transmission stuttering.
+    SetTargetFPS(40);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
     // Note: RLSW processes colours on an array of four floats already.  You don't really lose performance since the buffer is truncated on the final pixel set, not the span interpolations.
@@ -463,12 +464,6 @@ int main(void)
             if (currentMode > FIRST_PERSON_MAZE)
             {
                 currentMode = SIMPLE_SHAPES;
-            }
-            
-            if (currentMode == BUNNIES) {
-                printf("[DEBUG] ENTERING BUNNIES MODE: Bunny 8 at %p pos=(%.2f, %.2f) speed=(%.2f, %.2f)\n",
-                       (void*)&bunnies[8], bunnies[8].position.x, bunnies[8].position.y,
-                       bunnies[8].speed.x, bunnies[8].speed.y);
             }
 
             switchLock = true;
