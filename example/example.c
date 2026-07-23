@@ -400,10 +400,11 @@ int main(void)
 
     printf("[EXAMPLE] Total allocated after bunny and cubicmap load: %d bytes\n", sfe_mem_used());
 
+    // NOTE: the texture has been shrunk to 32x32, which is much smaller than the original, so that it could fit in the data cache of the RP2350.
     Image imgCubicmapAtlas = {
         .data = &bitmapCubicmapAtlas,
-        .width = 256,
-        .height = 256,
+        .width = 32,
+        .height = 32,
         .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
         .mipmaps = 1
     };
