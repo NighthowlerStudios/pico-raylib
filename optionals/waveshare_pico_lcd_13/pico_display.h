@@ -21,8 +21,8 @@
 #define SHOW_LED_DISPLAY_DRAWING
 #define SHOW_NO_LED 
 
-static const int PICO_DISPLAY_WIDTH = 240;
-static const int PICO_DISPLAY_HEIGHT = 240;
+static const unsigned int PICO_DISPLAY_WIDTH = 240;
+static const unsigned int PICO_DISPLAY_HEIGHT = 240;
 static const uint8_t PICO_DISPLAY_BUTTON_A = 15;
 static const uint8_t PICO_DISPLAY_BUTTON_B = 17;
 static const uint8_t PICO_DISPLAY_BUTTON_X = 19;

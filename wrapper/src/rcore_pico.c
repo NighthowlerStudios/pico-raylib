@@ -323,13 +323,16 @@ void SetWindowMinSize(int width, int height)
     GetMinimumResolution(&newWidth, &newHeight);
 
     // TRACELOG might not be ready by then
-    if (width != newWidth && height != newHeight)
+    if ((width < newWidth) || (height < newHeight))
     {
-        printf("[DEVICE] [WARNING] SetWindowMinSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
+        printf("WARNING: SetWindowMinSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
     }
 
-    CORE.Window.screenMin.width = newWidth;
-    CORE.Window.screenMin.height = newHeight;
+    CORE.Window.screenMin.width = width;
+    CORE.Window.screenMin.height = height;
+
+    // Clamp and reallocate if needed.
+    SetWindowSize(CORE.Window.screen.width, CORE.Window.screen.height);
 }
 
 // Overrides using pico_display.c the maximum resolution with a capper, if needed.
@@ -345,15 +348,21 @@ void SetWindowMaxSize(int width, int height)
     GetMaximumResolution(&newWidth, &newHeight);
 
     // TRACELOG might not be ready by then.
-    if (width != newWidth && height != newHeight)
+    if ((width > newWidth) || (height > newHeight))
     {
-        printf("[DEVICE] [WARNING] SetWindowMaxSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
+        printf("WARNING: SetWindowMaxSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
     }
 
     CORE.Window.screenMax.width = newWidth;
     CORE.Window.screenMax.height = newHeight;
+
+    // Clamp and reallocate if needed.
+    SetWindowSize(CORE.Window.screen.width, CORE.Window.screen.height);
 }
 
+// from pico_display.c
+extern void ResizeDisplay(int newWidth, int newHeight);
+extern void SetupViewport(int newWidth, int newHeight);
 // Set window dimensions
 void SetWindowSize(int width, int height)
 {
@@ -364,16 +373,27 @@ void SetWindowSize(int width, int height)
     newHeight = clamp_int(newHeight, CORE.Window.screenMin.height, CORE.Window.screenMax.height);
 
     // TRACELOG might not be ready by then.
-    if (width != newWidth && height != newHeight)
+    if (width != newWidth || height != newHeight)
     {
-        printf("[DEVICE] [WARNING] SetWindowSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
+        printf("WARNING: SetWindowSize() was clamped back to (%i, %i)\n", newWidth, newHeight);
     }
+
+    if (CORE.Window.screen.width == newWidth && CORE.Window.screen.height == newHeight)
+    {
+        // No need to reallocate if the size is the same.
+        return;
+    }
+
+    printf("WARNING: RP2350: Memory fragmentation can occur when changing window size.  Some buffers may end up in PSRAM.\n");
 
     CORE.Window.screen.width = newWidth;
     CORE.Window.screen.height = newHeight;
 
-    // TODO: actually reallocate all three buffers (depth, color, back color) to the new size.  This needs to be done inside of rlsw so the actual pixel arrays get modified.
-    //SetupViewport(newWidth, newHeight);
+    // REMINDER: currentOrientation is constant after compile time.  Resolutions in here will follow those boundaries.
+    SetupViewport(newWidth, newHeight);
+
+    // Wait until any DMAs are ready, then perform reallocations.
+    ResizeDisplay(newWidth, newHeight);
 }
 
 // Set window opacity, value opacity is between 0.0 and 1.0
@@ -725,6 +745,13 @@ extern void InitDisplay(unsigned int width, unsigned int height);
 int InitPlatform(void)
 {
     // We need to override the core resolutions, so that rcore.c sets the render res correctly before initializing RLSW.
+    printf("INFO: Initializing platform with screen width %i and height %i\n", CORE.Window.screen.width, CORE.Window.screen.height);
+    // Use dummies pre-clamp.
+    CORE.Window.screenMin.width = 0;
+    CORE.Window.screenMin.height = 0;
+    CORE.Window.screenMax.width = 1366;
+    CORE.Window.screenMax.height = 768;
+    // Enforce boundary clamps.
     SetWindowMinSize(0, 0);
     SetWindowMaxSize(1366, 768); // Maximum amount of PSRAM usage.
     SetWindowSize(CORE.Window.screen.width, CORE.Window.screen.height);
@@ -750,7 +777,7 @@ int InitPlatform(void)
 
     CORE.Window.ready = true;
 
-    TRACELOG(LOG_INFO, "PLATFORM: RP2350: Initialized successfully");
+    printf("INFO: PLATFORM: RP2350: Initialized successfully\n");
 
     return 0;
 }

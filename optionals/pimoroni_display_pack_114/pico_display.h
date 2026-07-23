@@ -18,8 +18,8 @@
 #define SPI_BAUD 75000000 // Best division for 150 MHz
 #endif
 
-static const int PICO_DISPLAY_WIDTH = 240;
-static const int PICO_DISPLAY_HEIGHT = 135;
+static const unsigned int PICO_DISPLAY_WIDTH = 240;
+static const unsigned int PICO_DISPLAY_HEIGHT = 135;
 static const uint8_t PICO_DISPLAY_BUTTON_A = 12;
 static const uint8_t PICO_DISPLAY_BUTTON_B = 13;
 static const uint8_t PICO_DISPLAY_BUTTON_X = 14;

@@ -43,8 +43,8 @@ int GetHardwareResolutionHeight()
 // st7789 is supposed to be SRAM usable, so we don't allow upscaling in here.
 void GetMinimumResolution(int* width, int* height)
 {
-    *width = GetHardwareResolutionWidth();
-    *height = GetHardwareResolutionHeight();
+    *width = 96;
+    *height = 96;
 }
 
 // st7789 is supposed to be SRAM usable, so we don't allow upscaling in here.
@@ -94,6 +94,21 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
     SendBufferST7789(screenWidth, screenHeight, (const char*)buffer);
 
     SHOW_LED_RLSW_DRAWING;
+}
+
+extern void WaitForDMA(void);
+extern void CommandClearBlack(void);
+extern void ResizeWindowST7789(uint16_t width, uint16_t height, bool circular);
+extern void swResize(int w, int h);
+void ResizeDisplay(int newWidth, int newHeight)
+{
+    // Don't allow reallocations until the ST7789 is done with the previous DMA transfer.  This is a blocking call.
+    WaitForDMA();
+    swResize(newWidth, newHeight);
+
+    // Enforces letterboxing.
+    CommandClearBlack();
+    ResizeWindowST7789(newWidth, newHeight, false);
 }
 
 void CleanupDisplay(void)

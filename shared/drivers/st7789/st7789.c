@@ -97,8 +97,14 @@ static uint8_t PWM;
 static uint8_t MOSI;
 static uint8_t SCK;
 
+void WaitForDMA(void)
+{
+    dma_channel_wait_for_finish_blocking(st_dma);
+    gpio_put(CS, 1);
+}
+
 // Write to the SPI using the assigned DMA channel.
-void command(uint8_t commandChar, int len, const char* data) {
+void CommandSPIBlocking(uint8_t commandChar, int len, const char* data) {
     gpio_put(DC, 0); // command mode
 
     gpio_put(CS, 0);
@@ -114,14 +120,14 @@ void command(uint8_t commandChar, int len, const char* data) {
 }
 
 // command but with a NULL set of data.
-void commandNoString(uint8_t commandChar) 
+void CommandNoString(uint8_t commandChar) 
 { 
-    command(commandChar, 0, NULL); 
+    CommandSPIBlocking(commandChar, 0, NULL); 
 }
 
 // DMA variant of command for large data (framebuffer)
 // Starts DMA transfer and returns immediately without blocking
-void command_dma(uint8_t commandChar, int len, const char* data) {
+void CommandDMA(uint8_t commandChar, int len, const char* data) {
     gpio_put(DC, 0); // command mode
     gpio_put(CS, 0);
     
@@ -163,40 +169,78 @@ void LockDMA()
     dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
 }
 
-#ifdef MULTICORE_VIDEO_OUTPUT
-
-// We use lazy scheduling in here because the framebuffer is read-only on core 2 anyway.
-#include "pico/mutex.h"
-#include "pico/multicore.h"
-
-static mutex_t frameBufferMutex;
-
-void Core1FlipBuffer(void)
+void ResizeWindowST7789(uint16_t width, uint16_t height, bool circular)
 {
-    // TODO: LockDMA().  The problem is framerates are unstable with it.
-    // There is very little use of putting video over here on SPI displays.  Consider this approach abandoned.
-    while(true)
-    {
-        // Pop buffer OUTSIDE mutex to avoid deadlock
-        uintptr_t buffer_ptr = (uintptr_t)multicore_fifo_pop_blocking();
-        uint32_t dimensions = multicore_fifo_pop_blocking();
-        int currentWidth = (int)(dimensions >> 16);
-        int currentHeight = (int)(dimensions & 0xffff);
-        uint16_t* currentBuffer = (uint16_t*)buffer_ptr;
+    // Setup the bus boundaries.
+    // OpenGL draws its coordinates bottom to top instead of top to bottom so we need to override some stuff in here.
+    uint8_t madctl;
+    uint16_t caset[2] = {0, 0};
+    uint16_t raset[2] = {0, 0};
 
-        //printf("[DEVICE] Current Buffer Pointer: %x\n", currentBuffer);
+    // TODO: check round displays for int row_offset = circular ? 40 : 80;
 
-        // Core 1 owns the mutex while managing the DMA transfer
-        mutex_enter_blocking(&frameBufferMutex);
-        
-        // Start 
-        command(RAMWR, currentWidth * currentHeight * sizeof(uint16_t), (const char*)currentBuffer);
-        
-        mutex_exit(&frameBufferMutex);
+    // ST7789 max res is 320x240
+    // Always center on the physical 320x240 screen
+    int col_offset = (320 - width) / 2;
+    int row_offset = (240 - height) / 2;
+
+    // add one if the width or height is odd, to center the image on the display
+    if ((width % 2) != 0) {
+        col_offset += 1;
     }
+    if ((height % 2) != 0) {
+        row_offset += 1;
+    }
+
+    caset[0] = col_offset;
+    caset[1] = width + col_offset - 1;
+    raset[0] = row_offset;
+    raset[1] = height + row_offset - 1;
+
+    switch(currentOrientation) {
+        case PORTRAIT:
+            madctl = ROW_ORDER;
+            break;
+        case INVERTED_LANDSCAPE:
+            madctl = SWAP_XY | COL_ORDER | ROW_ORDER;
+            break;
+        case INVERTED_PORTRAIT:
+            madctl = COL_ORDER;
+            break;
+        default:
+            madctl = SWAP_XY;
+            break;
+    }
+
+    // Byte swap the 16bit rows/cols values
+    caset[0] = __builtin_bswap16(caset[0]);
+    caset[1] = __builtin_bswap16(caset[1]);
+    raset[0] = __builtin_bswap16(raset[0]);
+    raset[1] = __builtin_bswap16(raset[1]);
+
+    CommandSPIBlocking(CASET,  4, (char *)caset);
+    CommandSPIBlocking(RASET,  4, (char *)raset);
+    CommandSPIBlocking(MASPI_DEFAULT_DCTLREG, 1, (char *)&madctl);
 }
 
-#endif
+void CommandClearBlack() {
+    ResizeWindowST7789(320, 240, false); // Ensure the window is set to the full size of display RAM.  Let the controller ignore the rest.
+
+    gpio_put(DC, 0); // command mode
+
+    gpio_put(CS, 0);
+    
+    uint8_t commandChar = RAMWR;
+    spi_write_blocking(spi, &commandChar, 1);
+
+    gpio_put(DC, 1); // data mode
+    uint8_t black = 0x00;
+    for (int i = 0; i < 320 * 240 * sizeof(uint16_t); i++) {
+        spi_write_blocking(spi, &black, 1);
+    }
+
+    gpio_put(CS, 1);
+}
 
 void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs, bool circular)
 {
@@ -217,12 +261,6 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     gpio_set_function(MOSI, GPIO_FUNC_SPI);
 
     printf("[ST7789] Claiming DMA Channel for LCD SPI.\n");
-
-    // Don't consume this channel on the wrong core.
-    // Otherwise, only enable DMA if we have a backbuffer.
-#if !defined(MULTICORE_VIDEO_OUTPUT) && defined(SW_DOUBLE_BUFFERING)
-    LockDMA();
-#endif
 
     gpio_set_function(DC, GPIO_FUNC_SIO);
     gpio_set_dir(DC, GPIO_OUT);
@@ -247,147 +285,45 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     // Common init.
     printf("[ST7789] Boot the ST7789\n");
 
-    commandNoString(SWRESET);
+    CommandNoString(SWRESET);
 
-    commandNoString(TEON);  // enable frame sync signal if used
-    command(COLMOD,    1, "\x05");  // 16 bits per pixel
+    CommandNoString(TEON);  // enable frame sync signal if used
+    CommandSPIBlocking(COLMOD,    1, "\x05");  // 16 bits per pixel
 
     const char porctrl_bytes[] = {0x0c, 0x0c, 0x00, 0x33, 0x33};
-    command(PORCTRL, 5, &porctrl_bytes);
-    command(LCMCTRL, 1, "\x2c");
-    command(VDVVRHEN, 1, "\x01");
-    command(VRHS, 1, "\x12");
-    command(VDVS, 1, "\x20");
+    CommandSPIBlocking(PORCTRL, 5, &porctrl_bytes);
+    CommandSPIBlocking(LCMCTRL, 1, "\x2c");
+    CommandSPIBlocking(VDVVRHEN, 1, "\x01");
+    CommandSPIBlocking(VRHS, 1, "\x12");
+    CommandSPIBlocking(VDVS, 1, "\x20");
     const char pwctrl_bytes[] = {0xa4, 0xa1};
-    command(PWCTRL1, 2, &pwctrl_bytes);
-    command(FRCTRL2, 1, "\x0f");
+    CommandSPIBlocking(PWCTRL1, 2, &pwctrl_bytes);
+    CommandSPIBlocking(FRCTRL2, 1, "\x0f");
 
     // As noted in https://github.com/pimoroni/pimoroni-pico/issues/1040
     // this is required to avoid a weird light grey banding issue with low brightness green.
     // The banding is not visible without tweaking gamma settings (GMCTRP1 & GMCTRN1) but
     // it makes sense to fix it anyway.
     const char ramctrl_bytes[] = { 0x00, 0xc0 };
-    command(RAMCTRL, 2, &ramctrl_bytes);
+    CommandSPIBlocking(RAMCTRL, 2, &ramctrl_bytes);
 
     // Pico Display 2.8 specific.
-    command(GCTRL, 1, "\x35");
-    command(VCOMS, 1, "\x1f");
+    CommandSPIBlocking(GCTRL, 1, "\x35");
+    CommandSPIBlocking(VCOMS, 1, "\x1f");
     const char gmctrp1_bytes[] = {0xd0, 0x08, 0x11, 0x08, 0x0C, 0x15, 0x39, 0x33, 0x50, 0x36, 0x13, 0x14, 0x29, 0x2d };
     const char gmctrn1_bytes[] = {0xd0, 0x08, 0x10, 0x08, 0x06, 0x06, 0x39, 0x44, 0x51, 0x0b, 0x16, 0x14, 0x2f, 0x31 };
-    command(GMCTRP1, 14, &gmctrp1_bytes);
-    command(GMCTRN1, 14, &gmctrn1_bytes);
+    CommandSPIBlocking(GMCTRP1, 14, &gmctrp1_bytes);
+    CommandSPIBlocking(GMCTRN1, 14, &gmctrn1_bytes);
 
-    commandNoString(INVON);   // set inversion mode
-    commandNoString(SLPOUT);  // leave sleep mode
-    commandNoString(DISPON);  // turn display on
+    CommandNoString(INVON);   // set inversion mode
+    CommandNoString(SLPOUT);  // leave sleep mode
+    CommandNoString(DISPON);  // turn display on
 
     sleep_ms(100);
 
-    // Setup the bus boundaries.
-    // OpenGL draws its coordinates bottom to top instead of top to bottom so we need to override some stuff in here.
-    uint8_t madctl;
-    uint16_t caset[2] = {0, 0};
-    uint16_t raset[2] = {0, 0};
-
-    // 240x240 Square and Round LCD Breakouts
-    if(width == 240 && height == 240) {
-      int row_offset = circular ? 40 : 80;
-      int col_offset = 0;
-    
-      switch(currentOrientation) {
-        case PORTRAIT:
-          if (!circular) row_offset = 0;
-          caset[0] = row_offset;
-          caset[1] = width + row_offset - 1;
-          raset[0] = col_offset;
-          raset[1] = width + col_offset - 1;
-
-          madctl = ROW_ORDER;
-          break;
-        case INVERTED_LANDSCAPE:
-          caset[0] = col_offset;
-          caset[1] = width + col_offset - 1;
-          raset[0] = row_offset;
-          raset[1] = width + row_offset - 1;
-
-          madctl = SWAP_XY | COL_ORDER | ROW_ORDER;
-          break;
-        case INVERTED_PORTRAIT:
-          caset[0] = row_offset;
-          caset[1] = width + row_offset - 1;
-          raset[0] = col_offset;
-          raset[1] = width + col_offset - 1;
-
-          madctl = COL_ORDER;
-          break;
-        default: // ROTATE_0 (and for any smart-alec who tries to rotate 45 degrees or something...)
-          if (!circular) row_offset = 0;
-          caset[0] = col_offset;
-          caset[1] = width + col_offset - 1;
-          raset[0] = row_offset;
-          raset[1] = width + row_offset - 1;
-
-          madctl = SWAP_XY;
-          break;
-      }
-    }
-
-    // Pico Display
-    if(width == 240 && height == 135) {
-      caset[0] = 40;   // 240 cols
-      caset[1] = 40 + width - 1;
-      raset[0] = 52;   // 135 rows
-      raset[1] = 52 + height - 1;
-      if (currentOrientation == INVERTED_LANDSCAPE) {
-        raset[0] += 1;
-        raset[1] += 1;
-      }
-      madctl = currentOrientation == INVERTED_LANDSCAPE ? ROW_ORDER | COL_ORDER : 0;
-      madctl |= SWAP_XY;
-    }
-
-    // Pico Display at 90 degree rotation
-    if(width == 135 && height == 240) {
-      caset[0] = 52;   // 135 cols
-      caset[1] = 52 + width - 1;
-      raset[0] = 40;   // 240 rows
-      raset[1] = 40 + height - 1;
-      madctl = 0;
-      if (currentOrientation == INVERTED_PORTRAIT) {
-        caset[0] += 1;
-        caset[1] += 1;
-      }
-      madctl = currentOrientation == INVERTED_PORTRAIT ? COL_ORDER : ROW_ORDER;
-    }
-
-    // Pico Display 2.0
-    if(width == 320 && height == 240) {
-      caset[0] = 0;
-      caset[1] = 319;
-      raset[0] = 0;
-      raset[1] = 239;
-      madctl = currentOrientation == INVERTED_LANDSCAPE ? ROW_ORDER | COL_ORDER : 0;
-      madctl |= SWAP_XY;
-    }
-
-    // Pico Display 2.0 at 90 degree rotation
-    if(width == 240 && height == 320) {
-      caset[0] = 0;
-      caset[1] = 239;
-      raset[0] = 0;
-      raset[1] = 319;
-      madctl = currentOrientation == INVERTED_PORTRAIT ? COL_ORDER : ROW_ORDER;
-    }
-
-    // Byte swap the 16bit rows/cols values
-    caset[0] = __builtin_bswap16(caset[0]);
-    caset[1] = __builtin_bswap16(caset[1]);
-    raset[0] = __builtin_bswap16(raset[0]);
-    raset[1] = __builtin_bswap16(raset[1]);
-
-    command(CASET,  4, (char *)caset);
-    command(RASET,  4, (char *)raset);
-    command(MASPI_DEFAULT_DCTLREG, 1, (char *)&madctl);
+    // Use these two to clear the entire device before actually setting the buffer size to the intended target.
+    CommandClearBlack(320 * 240 * sizeof(uint16_t)); // Clear the screen to black
+    ResizeWindowST7789(width, height, circular);
 
     printf("[ST7789] Ready for use.\n");
 
@@ -397,67 +333,32 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
         SetBacklight(255); // Turn backlight on now surprises have passed
     }
 
-    // Create the mutex and initialize Core 1.
-#ifdef MULTICORE_VIDEO_OUTPUT
-    if (width * height > 320 * 240)
-    {
-        printf("[ST7789] [WARNING] LCD SPI is set to use Core 1 instead of 0, but on this display resolution, one or more buffers will likely end up in PSRAM.\n");
-    }
-
-    printf("[ST7789] Setting up Core 1 as SPI instead of Core 0...\n");
-
-    mutex_init(&frameBufferMutex);
-    multicore_reset_core1();
-    multicore_launch_core1(Core1FlipBuffer);
-#else
 #if SW_DOUBLE_BUFFERING
     printf("[ST7789] Using DMA to transmit the framebuffer asynchronously.\n");
+    LockDMA();
 #else
     printf("[ST7789][WARNING] LCD SPI is set to use the same core as Raylib, without asynchronous DMA.  Memory is saved but performance will suffer with extreme overhead.\n");
-#endif
 #endif
 }
 
 void SendBufferST7789(int width, int height, const char* buffer)
 {
-        // Raylib must wait until Core 1 is done transferring the previous buffer.
-#ifdef MULTICORE_VIDEO_OUTPUT
-    //printf("[DEVICE] Frame buffer flipped.  Waiting until Core 1 is done using SPI...\n");
-    // We can't just block mutex above launch_core1, because we would deadlock up there at the other enter_blocking
-    mutex_enter_blocking(&frameBufferMutex);
-    //printf("[DEVICE] Telling Core 1 about the new pointer.\n");
-
-    uintptr_t buffer_ptr = (uintptr_t)buffer;
-    uint32_t dimensions = ((uint32_t)width << 16) | (uint32_t)height;
-    multicore_fifo_push_blocking(buffer_ptr);
-    multicore_fifo_push_blocking(dimensions);
-
-    mutex_exit(&frameBufferMutex);
-#else    
-        // Takes 0.01952 seconds on average 320 x 240 lcd's, but draw time of raylib is quite high.  
-        // If you overclock to 240MHz, raylib time is very quick, but SPI raises to around 0.024323
-        // The hard cap for the entire transfer is around 41fps, even if DMA is enabled to async it.
-    #ifdef SW_DOUBLE_BUFFERING
-        // Wait for previous DMA transfer to complete if raylib is faster than the display
-        dma_channel_wait_for_finish_blocking(st_dma);
-        gpio_put(CS, 1);
-        command_dma(RAMWR, width * height * sizeof(uint16_t), buffer);
-    #else
-        command(RAMWR, width * height * sizeof(uint16_t), buffer);
-    #endif
-    
+    // Raylib must wait until DMA is done transferring the previous buffer.   
+    // Takes 0.01952 seconds on average 320 x 240 lcd's, but draw time of raylib is quite high.  
+    // If you overclock to 240MHz, raylib time is very quick, but SPI raises to around 0.024323
+    // The hard cap for the entire transfer is around 41fps, even if DMA is enabled to async it.
+#ifdef SW_DOUBLE_BUFFERING
+    // Wait for previous DMA transfer to complete if raylib is faster than the display
+    WaitForDMA();
+    gpio_put(CS, 1);
+    CommandDMA(RAMWR, width * height * sizeof(uint16_t), buffer);
+#else
+    CommandSPIBlocking(RAMWR, width * height * sizeof(uint16_t), buffer);
 #endif
 }
 
 void CleanupST7789(void)
 {
-    // Don't unallocate dma's until the current frame is done drawing.
-#ifdef MULTICORE
-    mutex_enter_blocking(&frameBufferMutex);
-    // No-op Core 1.
-    multicore_reset_core1();
-#endif
-
     if(dma_channel_is_claimed(st_dma)) {
         dma_channel_abort(st_dma);
         dma_channel_unclaim(st_dma);
@@ -468,8 +369,8 @@ void CleanupST7789(void)
     // Conserve power.
     
     SetBacklight(0);
-    commandNoString(DISPOFF);
-    commandNoString(SLPIN);
+    CommandNoString(DISPOFF);
+    CommandNoString(SLPIN);
 
     printf("[ST7789] Screen, SPI and DMA destroyed.");
 }

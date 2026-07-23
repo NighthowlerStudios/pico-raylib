@@ -140,6 +140,7 @@ pico_find_compiler(PICO_COMPILER_LD ${PICO_GCC_TRIPLE}-ld)
 
 # https://github.com/georgik/esp-idf-component-raylib/blob/538523e3fb1d3cb8cda3001a189e129bd8482c36/raylib/CMakeLists.txt#L23
 set(raylib_defs
+    PLATFORM_EXTERNAL
     SFE_PICO_ALLOC_WRAP
     GRAPHICS_API_OPENGL_SOFTWARE
     PLATFORM_CUSTOM

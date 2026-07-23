@@ -9,6 +9,7 @@ typedef enum Orientation {
     INVERTED_PORTRAIT = 3
 } Orientation;
 
+// NOTE: Orientation remains consistent throughout runtime.  Change it at compile time instead.  Prevents buffer fragmentation.
 extern Orientation currentOrientation;
 
 #endif

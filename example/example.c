@@ -27,7 +27,7 @@ typedef enum
 
 double time = 0.0;
 float rotation = 0.0f;
-DemoModes currentMode = CUBICMAP;
+DemoModes currentMode = SIMPLE_SHAPES;
 
 void simple_shapes_draw(void)
 {
@@ -367,7 +367,7 @@ int main(void)
     // Also used to test that the screen gets clamped by force.
     // Note: to allocate this to SRAM, make sure InitWindow is first before all other allocations and that your stack is rather small!
     // For larger screens, it'll go to PSRAM instead.
-    InitWindow(screenWidth, screenHeight, "pico raylib example");
+    InitWindow(320, 240, "pico raylib example");
 
     printf("[EXAMPLE] Total allocated after RLSW init: %d bytes\n", sfe_mem_used());
 
@@ -452,6 +452,7 @@ int main(void)
             if (currentMode > FIRST_PERSON_MAZE)
             {
                 currentMode = SIMPLE_SHAPES;
+                SetWindowSize(160, 135);  // Reset to a smaller size to test buffer reallocation.
             }
 
             switchLock = true;
