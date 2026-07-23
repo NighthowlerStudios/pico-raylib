@@ -97,11 +97,6 @@ static uint8_t PWM;
 static uint8_t MOSI;
 static uint8_t SCK;
 
-// The ST7789 requires 16 ns between SPI rising edges.
-// 16 ns = 62,500,000 Hz
-// We are write only, so going past 62,500,000 is a safe overclock.
-static const uint32_t SPI_BAUD = 75000000;
-
 // Write to the SPI using the assigned DMA channel.
 void command(uint8_t commandChar, int len, const char* data) {
     gpio_put(DC, 0); // command mode
@@ -212,6 +207,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     CS = cs;
 
     sleep_ms(100);
+    printf("[ST7789] Initializing ST7789 with protocol speed %i Hz\n", SPI_BAUD);
 
     // First construct the pin information.
     // configure spi interface and pins
@@ -439,15 +435,11 @@ void SendBufferST7789(int width, int height, const char* buffer)
     mutex_exit(&frameBufferMutex);
 #else    
         // Takes 0.01952 seconds on average 320 x 240 lcd's, but draw time of raylib is quite high.  
-        // If you overclock to 250MHz, raylib time is very quick, but SPI raises to around 0.023404
-        // The hard cap for the entire transfer is around 43fps, even if DMA is enabled to async it.
+        // If you overclock to 240MHz, raylib time is very quick, but SPI raises to around 0.024323
+        // The hard cap for the entire transfer is around 41fps, even if DMA is enabled to async it.
     #ifdef SW_DOUBLE_BUFFERING
         // Wait for previous DMA transfer to complete if raylib is faster than the display
-        // Note: is_busy is unreliable, so we poll transfer_count instead
-        dma_channel_hw_t *hw = dma_channel_hw_addr(st_dma);
-        while (hw->transfer_count > 0) {
-            tight_loop_contents();
-        }
+        dma_channel_wait_for_finish_blocking(st_dma);
         gpio_put(CS, 1);
         command_dma(RAMWR, width * height * sizeof(uint16_t), buffer);
     #else

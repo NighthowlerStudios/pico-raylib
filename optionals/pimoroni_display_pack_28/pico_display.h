@@ -10,6 +10,14 @@
 #include "rgbled.h"
 #include "ray_button.h"
 
+#ifdef OVERCLOCK
+#undef SPI_BAUD
+#define SPI_BAUD 60000000 // Best division for 240 MHz
+#else
+#undef SPI_BAUD
+#define SPI_BAUD 75000000 // Best division for 150 MHz
+#endif
+
 static const int PICO_DISPLAY_WIDTH = 320;
 static const int PICO_DISPLAY_HEIGHT = 240;
 static const uint8_t PICO_DISPLAY_BUTTON_A = 12;

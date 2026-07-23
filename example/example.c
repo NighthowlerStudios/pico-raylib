@@ -371,8 +371,8 @@ int main(void)
 
     printf("[EXAMPLE] Total allocated after RLSW init: %d bytes\n", sfe_mem_used());
 
-    // Set to 40 as a workaround to reduce LCD transmission stuttering.
-    SetTargetFPS(40);               // Set our game to run at 60 frames-per-second
+    // Combat microstutters of cases where DMA was ahead of raylib by capping to maximum theoretical
+    SetTargetFPS(40);              
     //--------------------------------------------------------------------------------------
 
     // Note: RLSW processes colours on an array of four floats already.  You don't really lose performance since the buffer is truncated on the final pixel set, not the span interpolations.

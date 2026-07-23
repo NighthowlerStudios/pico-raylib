@@ -9,6 +9,10 @@
 #include "st7789.h"
 #include "ray_button.h"
 
+// This board doesn't have stable traces on it.
+#undef SPI_BAUD
+#define SPI_BAUD 10000000
+
 // No RGB LED debugs
 #define SHOW_LED_WAITING_FOR_USB
 #define SHOW_LED_INITIALIZING 
