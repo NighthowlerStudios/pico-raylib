@@ -69,7 +69,7 @@ void PollInput(void)
 // Internal linkage of these methods to prevent misuse by the Raylib user.
 
 extern void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs, bool circular);
-extern void SendBufferST7789(int width, int height, const char* buffer);
+extern void SendBufferST7789(int width, int height, const uint16_t* buffer);
 extern void CleanupST7789(void);
 
 // And now expose this functionality to Raylib.
@@ -91,7 +91,7 @@ void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
     SHOW_LED_DISPLAY_DRAWING;
 #endif
 
-    SendBufferST7789(screenWidth, screenHeight, (const char*)buffer);
+    SendBufferST7789(screenWidth, screenHeight, buffer);
 
     SHOW_LED_RLSW_DRAWING;
 }

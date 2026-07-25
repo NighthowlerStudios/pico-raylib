@@ -97,23 +97,74 @@ static uint8_t PWM;
 static uint8_t MOSI;
 static uint8_t SCK;
 
+void ForceSPI8(void)
+{
+    spi_set_format(
+        spi,   // SPI instance
+        8,         // Data bits (can be 4 to 16)
+        SPI_CPOL_0, // Clock polarity (CPOL)
+        SPI_CPHA_0, // Clock phase (CPHA)
+        SPI_MSB_FIRST // Order of bits
+    );
+}
+
+void ForceSPI16(void)
+{
+    spi_set_format(
+        spi,   // SPI instance
+        16,         // Data bits (can be 4 to 16)
+        SPI_CPOL_0, // Clock polarity (CPOL)
+        SPI_CPHA_0, // Clock phase (CPHA)
+        SPI_MSB_FIRST // Order of bits
+    );
+}
+
 void WaitForDMA(void)
 {
     dma_channel_wait_for_finish_blocking(st_dma);
     gpio_put(CS, 1);
 }
 
-// Write to the SPI using the assigned DMA channel.
+// Write to the SPI manually.
 void CommandSPIBlocking(uint8_t commandChar, int len, const char* data) {
     gpio_put(DC, 0); // command mode
 
     gpio_put(CS, 0);
+
+    ForceSPI8(); // Ensure SPI is in 8-bit mode for command transmission
     
     spi_write_blocking(spi, &commandChar, 1);
 
     if (data) {
         gpio_put(DC, 1); // data mode
-        spi_write_blocking(spi, (const uint8_t*)data, len);
+        spi_write_blocking(spi, data, len);
+    }
+
+    gpio_put(CS, 1);
+}
+
+// Write to the SPI but with a byte swap.
+// len is the number of 16-bit words to transmit
+void CommandSPIBlocking16(uint8_t commandChar, int len, const uint16_t* data) {
+    gpio_put(DC, 0); // command mode
+    gpio_put(CS, 0);
+
+    ForceSPI8(); // Ensure SPI is in 8-bit mode for command transmission
+    
+    spi_write_blocking(spi, &commandChar, 1);
+
+    if (data) {
+        gpio_put(DC, 1); // data mode
+        
+        // Transmit 16-bit values with proper byte order (big-endian for ST7789)
+        for (int i = 0; i < len; i++) {
+            uint16_t pixel = data[i];
+            // Send high byte first, then low byte (big-endian format)
+            uint8_t high = (pixel >> 8) & 0xFF;
+            uint8_t low = pixel & 0xFF;
+            spi_write_blocking(spi, &high, 1);
+            spi_write_blocking(spi, &low, 1);
+        }
     }
 
     gpio_put(CS, 1);
@@ -126,18 +177,22 @@ void CommandNoString(uint8_t commandChar)
 }
 
 // DMA variant of command for large data (framebuffer)
-// Starts DMA transfer and returns immediately without blocking
-void CommandDMA(uint8_t commandChar, int len, const char* data) {
+// Transfers framebuffer data directly via DMA with byte-swapping
+void CommandDMA(uint8_t commandChar, int len, const uint16_t* data) {
     gpio_put(DC, 0); // command mode
     gpio_put(CS, 0);
+
+    ForceSPI8(); // Ensure SPI is in 8-bit mode for command transmission
     
     // Send command byte using blocking SPI (small, so it's fine)
     spi_write_blocking(spi, &commandChar, 1);
     
-    if (data && len > 0) {
+    if (data && len > 0) {        
         gpio_put(DC, 1); // data mode
+
+        ForceSPI16(); // Switch to 16-bit mode for data transfer
         
-        // DMA is already configured in InitST7789(), just update the source and count
+        // Set read address and convert byte count to 16-bit word count
         dma_channel_set_read_addr(st_dma, data, false);
         dma_channel_set_trans_count(st_dma, len, true);  // true = start immediately
         
@@ -163,7 +218,9 @@ void LockDMA()
     // Hand ownership of the DMA channel to the caller.
     st_dma = dma_claim_unused_channel(true);
     dma_channel_config config = dma_channel_get_default_config(st_dma);
-    channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
+    channel_config_set_transfer_data_size(&config, DMA_SIZE_16);
+    // Enable byte swapping for 16-bit transfers to handle little-endian to big-endian conversion
+    // This ensures RGB565 colors are transmitted in the correct byte order to the ST7789
     channel_config_set_bswap(&config, false);
     channel_config_set_dreq(&config, spi_get_dreq(spi, true));
     dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
@@ -218,6 +275,11 @@ void ResizeWindowST7789(uint16_t width, uint16_t height, bool circular)
     raset[0] = __builtin_bswap16(raset[0]);
     raset[1] = __builtin_bswap16(raset[1]);
 
+#ifdef SW_DOUBLE_BUFFERING
+    // Wait for previous DMA transfer to complete if raylib is faster than the display
+    WaitForDMA();
+#endif
+
     CommandSPIBlocking(CASET,  4, (char *)caset);
     CommandSPIBlocking(RASET,  4, (char *)raset);
     CommandSPIBlocking(MASPI_DEFAULT_DCTLREG, 1, (char *)&madctl);
@@ -234,9 +296,9 @@ void CommandClearBlack() {
     spi_write_blocking(spi, &commandChar, 1);
 
     gpio_put(DC, 1); // data mode
-    uint8_t black = 0x00;
+    uint8_t colorData[2] = {0b00000000, 0b00000000}; // Black in RGB565
     for (int i = 0; i < 320 * 240 * sizeof(uint16_t); i++) {
-        spi_write_blocking(spi, &black, 1);
+        spi_write_blocking(spi, &colorData[i % 2], 1);
     }
 
     gpio_put(CS, 1);
@@ -333,6 +395,12 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
         SetBacklight(255); // Turn backlight on now surprises have passed
     }
 
+    // Purposefully deadlock to see the colour output.
+    // while(true)
+    // {
+    //     tight_loop_contents();
+    // }
+
 #if SW_DOUBLE_BUFFERING
     printf("[ST7789] Using DMA to transmit the framebuffer asynchronously.\n");
     LockDMA();
@@ -341,19 +409,28 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
 #endif
 }
 
-void SendBufferST7789(int width, int height, const char* buffer)
+void SendBufferST7789(int width, int height, const uint16_t* buffer)
 {
     // Raylib must wait until DMA is done transferring the previous buffer.   
     // Takes 0.01952 seconds on average 320 x 240 lcd's, but draw time of raylib is quite high.  
     // If you overclock to 240MHz, raylib time is very quick, but SPI raises to around 0.024323
     // The hard cap for the entire transfer is around 41fps, even if DMA is enabled to async it.
+    int word_count = width * height;
+    
 #ifdef SW_DOUBLE_BUFFERING
     // Wait for previous DMA transfer to complete if raylib is faster than the display
     WaitForDMA();
     gpio_put(CS, 1);
-    CommandDMA(RAMWR, width * height * sizeof(uint16_t), buffer);
+    CommandDMA(RAMWR, word_count, buffer);
 #else
-    CommandSPIBlocking(RAMWR, width * height * sizeof(uint16_t), buffer);
+    // Non-DMA path: use CommandSPIBlocking16 for byte-swapped RGB565 transmission
+    CommandSPIBlocking16(RAMWR, word_count, buffer);
+
+    // uint16_t incomingColourRGB565 = ((uint16_t*)buffer)[0];
+    // uint8_t r = (incomingColourRGB565 >> 11) & 0x1F;
+    // uint8_t g = (incomingColourRGB565 >> 5) & 0x3F;
+    // uint8_t b = incomingColourRGB565 & 0x1F;
+    // printf("[ST7789] incoming colour is R: %d, G: %d, B: %d\n", r, g, b);
 #endif
 }
 

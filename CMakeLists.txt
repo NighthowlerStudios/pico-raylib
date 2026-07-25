@@ -147,6 +147,7 @@ set(raylib_defs
     # Only 16-bit colour supported.
     SW_FRAMEBUFFER_DEPTH_TYPE=D16
     SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
+    SW_FRAMEBUFFER_OUTPUT_BGRA=false
 )
 
 if (USE_BACKBUFFER)

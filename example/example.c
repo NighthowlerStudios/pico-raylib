@@ -18,6 +18,7 @@
 
 typedef enum 
 {
+    COLOURS,
     SIMPLE_SHAPES,
     BUNNIES,
     WAVING_CUBES,
@@ -28,6 +29,69 @@ typedef enum
 double time = 0.0;
 float rotation = 0.0f;
 DemoModes currentMode = SIMPLE_SHAPES;
+
+typedef enum CurrentColor
+{
+    CURRENTRED = 0,
+    CURRENTYELLOW,
+    CURRENTGREEN,
+    CURRENTBLUE,
+    CURRENTPURPLE,
+    CURRENTCYAN
+} CurrentColor;
+
+CurrentColor currentColor = CURRENTRED;
+bool coloursButtonLock = false;
+
+void colours_update(void)
+{
+    if (IsKeyPressed(KEY_A) && !coloursButtonLock)
+    {
+        currentColor++;
+        if (currentColor > CURRENTCYAN) 
+        {
+            currentColor = CURRENTRED;
+        }
+        coloursButtonLock = true;
+    }
+    else if (!IsKeyPressed(KEY_A))
+    {
+        coloursButtonLock = false;
+    }
+}
+
+void colours_draw(void)
+{
+    switch (currentColor)
+    {
+        case CURRENTRED:
+            ClearBackground((Color){ 255, 0, 0, 255});
+            DrawText("RED", 20, 50, 10, RAYWHITE);
+            break;
+        case CURRENTYELLOW:
+            ClearBackground((Color){ 255, 255, 0, 255});
+            DrawText("YELLOW", 20, 50, 10, RAYWHITE);
+            break;
+        case CURRENTGREEN:
+            ClearBackground((Color){ 0, 255, 0, 255});
+            DrawText("GREEN", 20, 50, 10, RAYWHITE);
+            break;
+        case CURRENTBLUE:
+            ClearBackground((Color){ 0, 0, 255, 255});
+            DrawText("BLUE", 20, 50, 10, RAYWHITE);
+            break;
+        case CURRENTPURPLE:
+            ClearBackground((Color){ 255, 0, 255, 255});
+            DrawText("PURPLE", 20, 50, 10, RAYWHITE);
+            break;
+        case CURRENTCYAN:
+            ClearBackground((Color){ 0, 255, 255, 255});
+            DrawText("CYAN", 20, 50, 10, RAYWHITE);
+            break;
+    }
+
+    DrawText("Press A to change colour", 20, 20, 10, DARKGRAY);
+}
 
 void simple_shapes_draw(void)
 {
@@ -451,7 +515,7 @@ int main(void)
             currentMode++;
             if (currentMode > FIRST_PERSON_MAZE)
             {
-                currentMode = SIMPLE_SHAPES;
+                currentMode = COLOURS;
                 SetWindowSize(160, 135);  // Reset to a smaller size to test buffer reallocation.
             }
 
@@ -465,6 +529,9 @@ int main(void)
         // Update
         switch (currentMode)
         {
+            case COLOURS:
+                colours_update();
+                break;
             case SIMPLE_SHAPES:
                 simple_shapes_update();
                 break;
@@ -494,6 +561,9 @@ int main(void)
         BeginDrawing();
             switch (currentMode)
             {
+                case COLOURS:
+                    colours_draw();
+                    break;
                 case SIMPLE_SHAPES:
                     simple_shapes_draw();
                     break;
