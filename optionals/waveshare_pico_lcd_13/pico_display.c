@@ -82,8 +82,6 @@ extern void CleanupST7789(void);
 // And now expose this functionality to Raylib.
 void InitDisplay(unsigned int width, unsigned int height)
 {
-    SHOW_LED_INITIALIZING;
-
     printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", width, height);
 
     // Waveshare systems don't use backlight to control reset.
@@ -98,20 +96,11 @@ void InitDisplay(unsigned int width, unsigned int height)
     sleep_ms(150);
 
     InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS, false);
-
-    SHOW_LED_NO_FRAME_COMMANDED;
 }
 
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
-    // In multicore mode this will pulse extremely quickly.
-#ifndef MULTICORE
-    SHOW_LED_DISPLAY_DRAWING;
-#endif
-
     SendBufferST7789(screenWidth, screenHeight, buffer);
-
-    SHOW_LED_RLSW_DRAWING;
 }
 
 extern void WaitForDMA(void);
@@ -131,7 +120,5 @@ void ResizeDisplay(int newWidth, int newHeight)
 
 void CleanupDisplay(void)
 {
-    SHOW_NO_LED;
-
     CleanupST7789();
 }

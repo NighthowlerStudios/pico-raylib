@@ -360,6 +360,8 @@ void SetWindowMaxSize(int width, int height)
     SetWindowSize(CORE.Window.screen.width, CORE.Window.screen.height);
 }
 
+static bool hasEverAllocatedBuffers = false;
+
 // from pico_display.c
 extern void ResizeDisplay(int newWidth, int newHeight);
 extern void SetupViewport(int newWidth, int newHeight);
@@ -384,10 +386,16 @@ void SetWindowSize(int width, int height)
         return;
     }
 
-    printf("WARNING: RP2350: Memory fragmentation can occur when changing window size.  Some buffers may end up in PSRAM.\n");
-
     CORE.Window.screen.width = newWidth;
     CORE.Window.screen.height = newHeight;
+
+    // Don't attempt a resize if the buffers don't exist yet, fixes lockup.
+    if (!hasEverAllocatedBuffers)
+    {
+        return;
+    }
+
+    printf("WARNING: RP2350: Memory fragmentation can occur when changing window size.  Some buffers may end up in PSRAM.\n");
 
     // REMINDER: currentOrientation is constant after compile time.  Resolutions in here will follow those boundaries.
     SetupViewport(newWidth, newHeight);
@@ -778,6 +786,8 @@ int InitPlatform(void)
     CORE.Window.ready = true;
 
     printf("INFO: PLATFORM: RP2350: Initialized successfully\n");
+
+    hasEverAllocatedBuffers = true;
 
     return 0;
 }
