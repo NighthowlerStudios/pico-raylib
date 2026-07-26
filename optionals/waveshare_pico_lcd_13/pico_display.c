@@ -17,7 +17,7 @@ PicoButton picoButtonTable[] = {
     { KEY_DOWN, PICO_DISPLAY_JOY_DOWN, false },
     { KEY_LEFT, PICO_DISPLAY_JOY_LEFT, false },
     { KEY_RIGHT, PICO_DISPLAY_JOY_RIGHT, false },
-    { KEY_SPACE, PICO_DISPLAY_JOY_PRESS, false }
+    { KEY_W, PICO_DISPLAY_JOY_PRESS, false }
 };
 int numButtonsToTest = 9;
 
