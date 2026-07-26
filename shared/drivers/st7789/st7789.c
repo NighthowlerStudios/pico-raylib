@@ -41,6 +41,7 @@
 // Then it was translated over to C, because C++ had some libraries that are incompatible with C99.
 
 static const uint8_t PIN_UNUSED = CHAR_MAX; // Intentionally INT_MAX to avoid overflowing MicroPython's int type
+int spi_baud = 62500000; // Can go up to 75000000 on some displays with tight traces and the right overclock settings.
 
 typedef enum MASPI_DEFAULT_DCTL {
     ROW_ORDER   = 0b10000000,
@@ -313,11 +314,11 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     CS = cs;
 
     sleep_ms(100);
-    printf("[ST7789] Initializing ST7789 with protocol speed %i Hz\n", SPI_BAUD);
+    printf("[ST7789] Initializing ST7789 with protocol speed %i Hz\n", spi_baud);
 
     // First construct the pin information.
     // configure spi interface and pins
-    spi_init(spi, SPI_BAUD);
+    spi_init(spi, spi_baud);
 
     gpio_set_function(SCK, GPIO_FUNC_SPI);
     gpio_set_function(MOSI, GPIO_FUNC_SPI);

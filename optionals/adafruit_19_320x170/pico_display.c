@@ -5,16 +5,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 
-inline const char* GetMonitorDeviceName(void) { return "Pimoroni Pico Display Pack 2.8\""; }
-
-// Comparison table.
-PicoButton picoButtonTable[] = {
-    { KEY_A, PICO_DISPLAY_BUTTON_A, false },
-    { KEY_B, PICO_DISPLAY_BUTTON_B, false },
-    { KEY_X, PICO_DISPLAY_BUTTON_X, false },
-    { KEY_ESCAPE, PICO_DISPLAY_BUTTON_Y, false } // Quit button.
-};
-int numButtonsToTest = 4;
+inline const char* GetMonitorDeviceName(void) { return "Adafruit 1.9 320x170 IPS TFT Display\""; }
 
 int GetHardwareResolutionWidth()
 {
@@ -56,14 +47,12 @@ void GetMaximumResolution(int* width, int* height)
 
 void InitInput(void)
 {
-    SetupAllButtons();
+    // No buttons.
 }
 
-// Privated to avoid Raylib user misuse.
-extern void PollAllButtons(void);
 void PollInput(void)
 {
-    PollAllButtons();
+    // NO buttons.
 }
 
 // Internal linkage of these methods to prevent misuse by the Raylib user.
@@ -72,30 +61,35 @@ extern void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc
 extern void SendBufferST7789(int width, int height, const uint16_t* buffer);
 extern void CleanupST7789(void);
 
+#include "hardware/gpio.h"
+
 // And now expose this functionality to Raylib.
 void InitDisplay(unsigned int width, unsigned int height)
 {
-    SHOW_LED_INITIALIZING;
-
     spi_baud = SPI_BAUD;
 
     printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", width, height);
 
-    InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS, false);
+    // Waveshare systems don't use backlight to control reset.
+    gpio_init(SPI_RST);
+    gpio_set_dir(SPI_RST, GPIO_OUT);
 
-    SHOW_LED_NO_FRAME_COMMANDED;
+    // Reset as a pulse
+    gpio_put(SPI_RST, 1);
+    sleep_ms(50);
+
+    gpio_put(SPI_RST, 0);
+    sleep_ms(50);
+
+    gpio_put(SPI_RST, 1);
+    sleep_ms(150);
+
+    InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS, false);
 }
 
 void FlipBuffer(uint16_t* buffer, int screenWidth, int screenHeight)
 {
-    // In multicore mode this will pulse extremely quickly.
-#ifndef MULTCORE
-    SHOW_LED_DISPLAY_DRAWING;
-#endif
-
     SendBufferST7789(screenWidth, screenHeight, buffer);
-
-    SHOW_LED_RLSW_DRAWING;
 }
 
 extern void WaitForDMA(void);
@@ -115,7 +109,5 @@ void ResizeDisplay(int newWidth, int newHeight)
 
 void CleanupDisplay(void)
 {
-    SHOW_NO_LED;
-
     CleanupST7789();
 }

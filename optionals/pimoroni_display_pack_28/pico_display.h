@@ -11,10 +11,8 @@
 #include "ray_button.h"
 
 #ifdef OVERCLOCK
-#undef SPI_BAUD
 #define SPI_BAUD 60000000 // Best division for 240 MHz
 #else
-#undef SPI_BAUD
 #define SPI_BAUD 75000000 // Best division for 150 MHz
 #endif
 

@@ -138,6 +138,15 @@ void simple_shapes_update(void)
     if (GetFrameTime() == 0.0f) return;
     // 60 degrees per second.
     rotation += 60.0f * GetFrameTime();
+
+    // No hardware buttons.  Cycle through examples automatically.
+#ifndef AUTOEXAMPLE
+    if (time > 10.0)
+    {
+        time = 0.0;
+        currentMode++;
+    }
+#endif // AUTOEXAMPLE
 }
 
 #define MAX_BUNNIES 800 // Don't have much stack space on embedded.
@@ -206,28 +215,41 @@ void bunnymark_draw(void)
     DrawFPS(0, 0);
 }
 
+void add_bunnies(void)
+{
+    // Create more bunnies
+    for (int i = 0; i < 10; i++)
+    {
+        if (bunniesCount < MAX_BUNNIES)
+        {
+            bunnies[bunniesCount].position.x = GetRandomValue(50, 200);
+            bunnies[bunniesCount].position.y = GetRandomValue(50, 200);
+            bunnies[bunniesCount].speed.x = (float)GetRandomValue(-250, 250);
+            bunnies[bunniesCount].speed.y = (float)GetRandomValue(-250, 250);
+            bunnies[bunniesCount].color = (Color){ GetRandomValue(50, 240),
+                                                GetRandomValue(80, 240),
+                                                GetRandomValue(100, 240), 255 };
+            bunniesCount++;
+        }
+    }
+}
+
 void bunnymark_update(void)
 {
     //check_all_bunnies("START_UPDATE");
     
     if (IsKeyPressed(KEY_A))
     {
-        // Create more bunnies
-        for (int i = 0; i < 10; i++)
-        {
-            if (bunniesCount < MAX_BUNNIES)
-            {
-                bunnies[bunniesCount].position.x = GetRandomValue(50, 200);
-                bunnies[bunniesCount].position.y = GetRandomValue(50, 200);
-                bunnies[bunniesCount].speed.x = (float)GetRandomValue(-250, 250);
-                bunnies[bunniesCount].speed.y = (float)GetRandomValue(-250, 250);
-                bunnies[bunniesCount].color = (Color){ GetRandomValue(50, 240),
-                                                    GetRandomValue(80, 240),
-                                                    GetRandomValue(100, 240), 255 };
-                bunniesCount++;
-            }
-        }
+        add_bunnies();
     }
+
+#ifndef AUTOEXAMPLE
+    // For 1 second, pretend button is held.
+    if ((time > 2.0) && (time < 3.0))
+    {
+        add_bunnies();
+    }
+#endif // AUTOEXAMPLE
 
     // Update bunnies
     for (int i = 0; i < bunniesCount; i++)
@@ -253,6 +275,15 @@ void bunnymark_update(void)
     }
     
     //check_all_bunnies("END_UPDATE");
+
+    // No hardware buttons.  Cycle through examples automatically.
+#ifndef AUTOEXAMPLE
+    if (time > 10.0)
+    {
+        time = 0.0;
+        currentMode++;
+    }
+#endif // AUTOEXAMPLE
 }
 
 Camera3D camera = { 0 };
@@ -324,6 +355,15 @@ void waving_cubes_update(void)
     scale = (2.0f + (float)sin(time))*0.7f;
 
     UpdateCamera(&camera, CAMERA_ORBITAL);
+
+    // No hardware buttons.  Cycle through examples automatically.
+#ifndef AUTOEXAMPLE
+    if (time > 10.0)
+    {
+        time = 0.0;
+        currentMode++;
+    }
+#endif // AUTOEXAMPLE
 }
 
 Model model; // cubicmap model
@@ -335,6 +375,15 @@ Vector3 mapPosition = { -16.0f, 0.0f, -8.0f };          // Set model position
 void cubicmap_update(void)
 {
     UpdateCamera(&camera, CAMERA_ORBITAL);
+
+    // No hardware buttons.  Cycle through examples automatically.
+#ifndef AUTOEXAMPLE
+    if (time > 10.0)
+    {
+        time = 0.0;
+        currentMode++;
+    }
+#endif // AUTOEXAMPLE
 }
 
 #define MAZE_SCALE 2.0f
@@ -400,6 +449,15 @@ void first_person_maze_update(void)
             }
         }
     }
+
+    // No hardware buttons.  Cycle through examples automatically.
+#ifndef AUTOEXAMPLE
+    if (time > 10.0)
+    {
+        time = 0.0;
+        currentMode++;
+    }
+#endif
 }
 
 void first_person_maze_draw(void)
@@ -507,7 +565,7 @@ int main(void)
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        time = GetTime();
+        time += GetFrameTime();
 
         if (IsKeyPressed(KEY_X) && !switchLock)
         {
@@ -515,7 +573,7 @@ int main(void)
             currentMode++;
             if (currentMode > FIRST_PERSON_MAZE)
             {
-                currentMode = COLOURS;
+                currentMode = SIMPLE_SHAPES; // Don't use colours mode.  That was for SPI debugging only.
                 SetWindowSize(160, 135);  // Reset to a smaller size to test buffer reallocation.
             }
 

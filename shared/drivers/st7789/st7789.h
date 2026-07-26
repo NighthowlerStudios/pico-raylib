@@ -35,7 +35,7 @@
 // The ST7789 requires 16 ns between SPI rising edges.
 // 16 ns = 62,500,000 Hz
 // We are write only, so going past 62,500,000 is a safe overclock.
-#define SPI_BAUD 62500000 // Can go up to 75000000 on some displays with tight traces.
+extern int spi_baud;
 
 // Set the backlight manually.
 void SetBacklight(uint8_t brightness);

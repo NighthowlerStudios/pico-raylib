@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 
-inline const char* GetMonitorDeviceName(void) { return "Pimoroni Pico Display Pack 1.14\""; }
+inline const char* GetMonitorDeviceName(void) { return "Waveshare Pico LCD 1.3\""; }
 
 // Comparison table.
 PicoButton picoButtonTable[] = {
@@ -82,6 +82,8 @@ extern void CleanupST7789(void);
 // And now expose this functionality to Raylib.
 void InitDisplay(unsigned int width, unsigned int height)
 {
+    spi_baud = SPI_BAUD;
+
     printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", width, height);
 
     // Waveshare systems don't use backlight to control reset.
@@ -89,10 +91,13 @@ void InitDisplay(unsigned int width, unsigned int height)
     gpio_set_dir(SPI_RST, GPIO_OUT);
 
     // Reset as a pulse
-    gpio_put(SPI_RST, false);
-    sleep_ms(150);
+    gpio_put(SPI_RST, 1);
+    sleep_ms(50);
 
-    gpio_put(SPI_RST, true);
+    gpio_put(SPI_RST, 0);
+    sleep_ms(50);
+
+    gpio_put(SPI_RST, 1);
     sleep_ms(150);
 
     InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS, false);

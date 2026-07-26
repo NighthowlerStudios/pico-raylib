@@ -77,6 +77,8 @@ void InitDisplay(unsigned int width, unsigned int height)
 {
     SHOW_LED_INITIALIZING;
 
+    spi_baud = SPI_BAUD;
+
     printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", width, height, false);
 
     InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS, false);

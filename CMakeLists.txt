@@ -40,7 +40,7 @@ option(USE_USB_CONSOLE_OUT "Wait until the USB is connected before going forward
 option(OVERCLOCK "Overclock the RP2350 to the best frequency supported by the current display driver." OFF)
 
 enum_option(RAYLIB_DISPLAY 
-    "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout;Pimoroni_Display_Pack_1.14;Waveshare_Pico_LCD_1.3" 
+    "Pimoroni_Display_Pack_2.8;Pimoroni_VGA_Demo;Pimoroni_DVI_Breakout;Pimoroni_Display_Pack_1.14;Waveshare_Pico_LCD_1.3;Adafruit_1.9_320x170" 
     "Which video output is wired up?"
 )
 enum_option(RAYLIB_BOARD 
@@ -68,7 +68,8 @@ cmake_dependent_option(
     SD_CARD 
     "An SD card module is wired up." 
     OFF # The below is true, this option is now configurable
-    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo"]]
+    [[NOT RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo"
+    OR NOT RAYLIB_DISPLAY STREQUAL "Adafruit_1.9_320x170"]]
     ON # The above is false, this option is now locked to ON
 )
 
@@ -182,6 +183,12 @@ if (RAYLIB_DISPLAY STREQUAL "Pimoroni_VGA_Demo")
         PICO_DEFAULT_SPI_TX_PIN=35
         PICO_DEFAULT_SPI_RX_PIN=32
         PICO_DEFAULT_SPI_CSN_PIN=33
+    )
+endif()
+
+if (RAYLIB_DISPLAY STREQUAL "Adafruit_1.9_320x170")
+    list(APPEND raylib_defs 
+        AUTOEXAMPLE
     )
 endif()
 
