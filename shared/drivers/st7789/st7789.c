@@ -86,7 +86,7 @@ typedef enum reg {
 #include "hardware/spi.h"
 
 // interface pins with our standard defaults where appropriate
-static spi_inst_t *spi = spi0;
+spi_inst_t *spi_st7789 = spi0;
 static uint8_t parallel_sm;
 static PIO parallel_pio;
 static uint8_t parallel_offset;
@@ -101,7 +101,7 @@ static uint8_t SCK;
 void ForceSPI8(void)
 {
     spi_set_format(
-        spi,   // SPI instance
+        spi_st7789,   // SPI instance
         8,         // Data bits (can be 4 to 16)
         SPI_CPOL_0, // Clock polarity (CPOL)
         SPI_CPHA_0, // Clock phase (CPHA)
@@ -112,7 +112,7 @@ void ForceSPI8(void)
 void ForceSPI16(void)
 {
     spi_set_format(
-        spi,   // SPI instance
+        spi_st7789,   // SPI instance
         16,         // Data bits (can be 4 to 16)
         SPI_CPOL_0, // Clock polarity (CPOL)
         SPI_CPHA_0, // Clock phase (CPHA)
@@ -134,11 +134,11 @@ void CommandSPIBlocking(uint8_t commandChar, int len, const char* data) {
 
     ForceSPI8(); // Ensure SPI is in 8-bit mode for command transmission
     
-    spi_write_blocking(spi, &commandChar, 1);
+    spi_write_blocking(spi_st7789, &commandChar, 1);
 
     if (data) {
         gpio_put(DC, 1); // data mode
-        spi_write_blocking(spi, data, len);
+        spi_write_blocking(spi_st7789, data, len);
     }
 
     gpio_put(CS, 1);
@@ -152,7 +152,7 @@ void CommandSPIBlocking16(uint8_t commandChar, int len, const uint16_t* data) {
 
     ForceSPI8(); // Ensure SPI is in 8-bit mode for command transmission
     
-    spi_write_blocking(spi, &commandChar, 1);
+    spi_write_blocking(spi_st7789, &commandChar, 1);
 
     if (data) {
         gpio_put(DC, 1); // data mode
@@ -163,8 +163,8 @@ void CommandSPIBlocking16(uint8_t commandChar, int len, const uint16_t* data) {
             // Send high byte first, then low byte (big-endian format)
             uint8_t high = (pixel >> 8) & 0xFF;
             uint8_t low = pixel & 0xFF;
-            spi_write_blocking(spi, &high, 1);
-            spi_write_blocking(spi, &low, 1);
+            spi_write_blocking(spi_st7789, &high, 1);
+            spi_write_blocking(spi_st7789, &low, 1);
         }
     }
 
@@ -186,7 +186,7 @@ void CommandDMA(uint8_t commandChar, int len, const uint16_t* data) {
     ForceSPI8(); // Ensure SPI is in 8-bit mode for command transmission
     
     // Send command byte using blocking SPI (small, so it's fine)
-    spi_write_blocking(spi, &commandChar, 1);
+    spi_write_blocking(spi_st7789, &commandChar, 1);
     
     if (data && len > 0) {        
         gpio_put(DC, 1); // data mode
@@ -223,8 +223,8 @@ void LockDMA()
     // Enable byte swapping for 16-bit transfers to handle little-endian to big-endian conversion
     // This ensures RGB565 colors are transmitted in the correct byte order to the ST7789
     channel_config_set_bswap(&config, false);
-    channel_config_set_dreq(&config, spi_get_dreq(spi, true));
-    dma_channel_configure(st_dma, &config, &spi_get_hw(spi)->dr, NULL, 0, false);
+    channel_config_set_dreq(&config, spi_get_dreq(spi_st7789, true));
+    dma_channel_configure(st_dma, &config, &spi_get_hw(spi_st7789)->dr, NULL, 0, false);
 }
 
 void ResizeWindowST7789(uint16_t width, uint16_t height, bool circular)
@@ -241,6 +241,11 @@ void ResizeWindowST7789(uint16_t width, uint16_t height, bool circular)
     // Always center on the physical 320x240 screen
     int col_offset = (320 - width) / 2;
     int row_offset = (240 - height) / 2;
+    
+    // Square displays for some reason push the framebuffer 40 pixels left...
+    if (!circular) {
+        col_offset -= 40;
+    }
 
     // add one if the width or height is odd, to center the image on the display
     if ((width % 2) != 0) {
@@ -294,12 +299,12 @@ void CommandClearBlack() {
     gpio_put(CS, 0);
     
     uint8_t commandChar = RAMWR;
-    spi_write_blocking(spi, &commandChar, 1);
+    spi_write_blocking(spi_st7789, &commandChar, 1);
 
     gpio_put(DC, 1); // data mode
     uint8_t colorData[2] = {0b00000000, 0b00000000}; // Black in RGB565
     for (int i = 0; i < 320 * 240 * sizeof(uint16_t); i++) {
-        spi_write_blocking(spi, &colorData[i % 2], 1);
+        spi_write_blocking(spi_st7789, &colorData[i % 2], 1);
     }
 
     gpio_put(CS, 1);
@@ -318,7 +323,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
 
     // First construct the pin information.
     // configure spi interface and pins
-    spi_init(spi, spi_baud);
+    spi_init(spi_st7789, spi_baud);
 
     gpio_set_function(SCK, GPIO_FUNC_SPI);
     gpio_set_function(MOSI, GPIO_FUNC_SPI);
@@ -442,7 +447,7 @@ void CleanupST7789(void)
         dma_channel_unclaim(st_dma);
     }
 
-    spi_deinit(spi);
+    spi_deinit(spi_st7789);
 
     // Conserve power.
     

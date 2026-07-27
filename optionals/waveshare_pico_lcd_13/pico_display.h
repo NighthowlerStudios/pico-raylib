@@ -10,7 +10,7 @@
 #include "ray_button.h"
 
 // This board doesn't have stable traces on it.
-#define SPI_BAUD 10000000
+#define SPI_BAUD 60000000
 
 // No RGB LED debugs
 #define SHOW_LED_WAITING_FOR_USB

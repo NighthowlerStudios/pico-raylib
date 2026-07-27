@@ -30,6 +30,6 @@ A new header called `pico_display.h` should also be ready.  Include this so that
 - [ ] Pimoroni DVI Demo
 - [x] Pimoroni Display Pack 2.8
 - [x] Pimoroni Display Pack 1.14
-- [ ] Waveshare Pico LCD 1.3
+- [x] Waveshare Pico LCD 1.3
 - [x] Adafruit 1.9 320x170 Color IPS TFT Display
 - [ ] Adafruit SHARP Memory Display Breakout

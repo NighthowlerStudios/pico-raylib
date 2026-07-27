@@ -29,6 +29,8 @@
 
 #include <stdint.h>
 
+#include <hardware/spi.h>
+
 // Drivers should dictate if orientation is supported.  
 #include "orientation.h"
 
@@ -36,6 +38,8 @@
 // 16 ns = 62,500,000 Hz
 // We are write only, so going past 62,500,000 is a safe overclock.
 extern int spi_baud;
+// Allow overrides of which hardware SPI a specific display is on.
+extern spi_inst_t *spi_st7789;
 
 // Set the backlight manually.
 void SetBacklight(uint8_t brightness);

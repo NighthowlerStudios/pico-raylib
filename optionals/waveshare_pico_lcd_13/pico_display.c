@@ -100,6 +100,9 @@ void InitDisplay(unsigned int width, unsigned int height)
     gpio_put(SPI_RST, 1);
     sleep_ms(150);
 
+    // Waveshare's display is on hardware SPI 1, not 0.
+    spi_st7789 = spi1;
+
     InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS, false);
 }
 

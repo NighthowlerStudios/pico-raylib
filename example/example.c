@@ -140,7 +140,7 @@ void simple_shapes_update(void)
     rotation += 60.0f * GetFrameTime();
 
     // No hardware buttons.  Cycle through examples automatically.
-#ifndef AUTOEXAMPLE
+#ifdef AUTOEXAMPLE
     if (time > 10.0)
     {
         time = 0.0;
@@ -243,7 +243,7 @@ void bunnymark_update(void)
         add_bunnies();
     }
 
-#ifndef AUTOEXAMPLE
+#ifdef AUTOEXAMPLE
     // For 1 second, pretend button is held.
     if ((time > 2.0) && (time < 3.0))
     {
@@ -277,7 +277,7 @@ void bunnymark_update(void)
     //check_all_bunnies("END_UPDATE");
 
     // No hardware buttons.  Cycle through examples automatically.
-#ifndef AUTOEXAMPLE
+#ifdef AUTOEXAMPLE
     if (time > 10.0)
     {
         time = 0.0;
@@ -357,7 +357,7 @@ void waving_cubes_update(void)
     UpdateCamera(&camera, CAMERA_ORBITAL);
 
     // No hardware buttons.  Cycle through examples automatically.
-#ifndef AUTOEXAMPLE
+#ifdef AUTOEXAMPLE
     if (time > 10.0)
     {
         time = 0.0;
@@ -377,7 +377,7 @@ void cubicmap_update(void)
     UpdateCamera(&camera, CAMERA_ORBITAL);
 
     // No hardware buttons.  Cycle through examples automatically.
-#ifndef AUTOEXAMPLE
+#ifdef AUTOEXAMPLE
     if (time > 10.0)
     {
         time = 0.0;
@@ -409,11 +409,38 @@ Camera3D firstPersonCamera = { 0 };
 int playerCellX = 0;
 int playerCellY = 0;
 
+#include "rcamera.h"
+
 void first_person_maze_update(void)
 {
     Vector3 oldCamPos = firstPersonCamera.position;    // Store old camera position
 
-    UpdateCamera(&firstPersonCamera, CAMERA_FIRST_PERSON);
+    // Manually update camera rotation and forward so we get better control over angle per second.
+    float camPitchStep = 0.0f;  
+    float camYawStep = 0.0f;    
+    if (IsKeyDown(KEY_LEFT)) 
+    {
+        camYawStep = GetFrameTime() * -0.5f * PI; // Rotate left 0.5 radians per second.
+    }
+    if (IsKeyDown(KEY_RIGHT))
+    {
+        camYawStep = GetFrameTime() * 0.5f * PI;  // Rotate right 0.5 radians per second.
+    }
+    if (IsKeyDown(KEY_UP))
+    {
+        camPitchStep = GetFrameTime() * -0.5f * PI;   // Rotate up 0.5 radians per second.
+    }
+    if (IsKeyDown(KEY_DOWN))
+    {
+        camPitchStep = GetFrameTime() * 0.5f * PI;    // Rotate down 0.5 radians per second.
+    }
+    CameraPitch(&firstPersonCamera, camPitchStep, true, false, false);
+    CameraYaw(&firstPersonCamera, camYawStep, false);
+
+    if (IsKeyDown(KEY_W)) 
+    {
+        CameraMoveForward(&firstPersonCamera, GetFrameTime() * 3.0f, true);  // Move forward 2 units per second.
+    }
 
     // Check player collision (we simplify to 2D collision detection)
     Vector2 playerPos = { firstPersonCamera.position.x, firstPersonCamera.position.z };
@@ -451,13 +478,13 @@ void first_person_maze_update(void)
     }
 
     // No hardware buttons.  Cycle through examples automatically.
-#ifndef AUTOEXAMPLE
+#ifdef AUTOEXAMPLE
     if (time > 10.0)
     {
         time = 0.0;
         currentMode++;
     }
-#endif
+#endif // AUTOEXAMPLE
 }
 
 void first_person_maze_draw(void)
