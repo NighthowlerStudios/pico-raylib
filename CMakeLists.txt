@@ -127,7 +127,7 @@ include(pico-extras/external/pico_extras_import.cmake)
 cmake_policy(SET CMP0054 NEW)
 
 project(pico_raylib 
-    VERSION 1.0.0 
+    VERSION 2.0.0 
     LANGUAGES C ASM
 )
 
