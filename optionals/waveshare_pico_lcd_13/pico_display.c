@@ -76,6 +76,7 @@ void PollInput(void)
 extern void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8_t sck, uint8_t pwm, uint8_t cs, bool circular);
 extern void SendBufferST7789(int width, int height, const uint16_t* buffer);
 extern void CleanupST7789(void);
+extern void ForceST7789Reset(uint8_t resetPin);
 
 #include "hardware/gpio.h"
 
@@ -84,24 +85,13 @@ void InitDisplay(unsigned int width, unsigned int height)
 {
     spi_baud = SPI_BAUD;
 
+    // Waveshare's display is on hardware SPI 1, not 0.
+    spi_st7789 = spi1;
+
     printf("[DEVICE] Initializing SPI to the LCD with width %i and height %i...\n", width, height);
 
     // Waveshare systems don't use backlight to control reset.
-    gpio_init(SPI_RST);
-    gpio_set_dir(SPI_RST, GPIO_OUT);
-
-    // Reset as a pulse
-    gpio_put(SPI_RST, 1);
-    sleep_ms(50);
-
-    gpio_put(SPI_RST, 0);
-    sleep_ms(50);
-
-    gpio_put(SPI_RST, 1);
-    sleep_ms(150);
-
-    // Waveshare's display is on hardware SPI 1, not 0.
-    spi_st7789 = spi1;
+    ForceST7789Reset(SPI_RST);
 
     InitST7789(width, height, SPI_DEFAULT_MOSI, SPI_DEFAULT_DC, SPI_DEFAULT_SCK, SPI_BG_FRONT_PWM, SPI_BG_FRONT_CS, false);
 }

@@ -98,6 +98,21 @@ static uint8_t PWM;
 static uint8_t MOSI;
 static uint8_t SCK;
 
+void ForceST7789Reset(uint8_t resetPin)
+{
+    gpio_init(resetPin);
+    gpio_set_dir(resetPin, GPIO_OUT);
+
+    gpio_put(resetPin, 1);
+    sleep_ms(50);
+
+    gpio_put(resetPin, 0);
+    sleep_ms(50);
+
+    gpio_put(resetPin, 1);
+    sleep_ms(150);
+}
+
 void ForceSPI8(void)
 {
     spi_set_format(
