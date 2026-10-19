@@ -185,6 +185,12 @@ Texture2D texBunny;  // Doesn't contain the data.  RLSW will.
 //     }
 // }
 
+#ifndef RLSW_DOUBLE_BUFFERING
+Image bunnymarkBuffer;
+Texture2D bunnymarkCopyDest;
+#endif
+Image imgBunny; // The Image API test should never copy to texture.
+
 void bunnymark_draw(void)
 {
     // static int debug_once = 0;
@@ -199,6 +205,28 @@ void bunnymark_draw(void)
     
     //check_all_bunnies("START_DRAW");
     
+    
+
+#ifndef RLSW_DOUBLE_BUFFERING
+    // Here we test using the ImageAPI as a second buffer to skip all of the rlgl maths calculations to just draw pixels.
+    // This comes at the cost of more RAM and the copy time for the final result back into the dedicated buffer.
+    // So this might not be worth it in the end.  We'll see!
+    ImageClearBackground(&bunnymarkBuffer, RAYWHITE);
+
+    for (int i = 0; i < bunniesCount; i++)
+    {
+        // Draw each bunny into the bunnymarkBuffer
+        ImageDrawImage(&bunnymarkBuffer, imgBunny, (int)bunnies[i].position.x, (int)bunnies[i].position.y, bunnies[i].color);
+    }
+
+    ImageDrawRectangle(&bunnymarkBuffer, 0, 0, screenWidth, 40, BLACK);
+    ImageDrawText(&bunnymarkBuffer, TextFormat("bunnies: %i", bunniesCount), 120, 10, 20, GREEN);
+
+    // Finally, draw the bunnymarkBuffer to the screen.  This costs our copy time.
+    UpdateTexture(bunnymarkCopyDest, bunnymarkBuffer.data);
+    DrawTexture(bunnymarkCopyDest, 0, 0, RAYWHITE);
+
+#else
     ClearBackground(RAYWHITE);
 
     for (int i = 0; i < bunniesCount; i++)
@@ -211,6 +239,7 @@ void bunnymark_draw(void)
     
     DrawRectangle(0, 0, screenWidth, 40, BLACK);
     DrawText(TextFormat("bunnies: %i", bunniesCount), 120, 10, 20, GREEN);
+#endif
 
     DrawFPS(0, 0);
 }
@@ -527,15 +556,29 @@ int main(void)
     // Note: RLSW processes colours on an array of four floats already.  You don't really lose performance since the buffer is truncated on the final pixel set, not the span interpolations.
     // NOTE: When doing &array to an array in flash, the copy is NOT done in Image.  So UnloadImage is unsafe.
     // NOTE: RLSW does not support compressed texture nor image data unless it was loaded by raylib as a file.
-    Image imgBunny = {
-        .data = &bitmapRaybunny,
-        .width = 32,
-        .height = 32,
-        .format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA,
-        .mipmaps = 1
-    };
+    imgBunny.data = &bitmapRaybunny;
+    imgBunny.width = 32;
+    imgBunny.height = 32;
+    imgBunny.format = PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
+    imgBunny.mipmaps = 1;
+
+#ifdef RLSW_DOUBLE_BUFFERING
+
     // Copy from Flash to PSRAM.
     texBunny = LoadTextureFromImage(imgBunny);
+
+#else
+
+    int cappedWidth = GetScreenWidth();
+    int cappedHeight = GetScreenHeight();
+
+    bunnymarkBuffer = GenImageColor(cappedWidth, cappedHeight, RAYWHITE);
+    ImageFormat(&bunnymarkBuffer, PIXELFORMAT_UNCOMPRESSED_R5G6B5);
+
+    // Load it empty so it can be updated later.
+    bunnymarkCopyDest = LoadTextureFromImage(bunnymarkBuffer);
+
+#endif
 
     Image imgCubicmap = {
         .data = &bitmapCubicmap,
@@ -602,6 +645,17 @@ int main(void)
             {
                 currentMode = SIMPLE_SHAPES; // Don't use colours mode.  That was for SPI debugging only.
                 SetWindowSize(160, 135);  // Reset to a smaller size to test buffer reallocation.
+
+            #ifndef RLSW_DOUBLE_BUFFERING
+                // We need to reload the image and its target texture to resize them.
+                UnloadImage(bunnymarkBuffer);
+                bunnymarkBuffer = GenImageColor(160, 135, RAYWHITE);
+                ImageFormat(&bunnymarkBuffer, PIXELFORMAT_UNCOMPRESSED_R5G6B5);
+
+                UnloadTexture(bunnymarkCopyDest);
+                bunnymarkCopyDest = LoadTextureFromImage(bunnymarkBuffer);
+
+            #endif
             }
 
             switchLock = true;
