@@ -146,14 +146,14 @@ set(raylib_defs
     GRAPHICS_API_OPENGL_SOFTWARE
     PLATFORM_CUSTOM
     # Only 16-bit colour supported.
-    SW_FRAMEBUFFER_DEPTH_TYPE=D16
-    SW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
-    SW_FRAMEBUFFER_OUTPUT_BGRA=false
+    RLSW_FRAMEBUFFER_DEPTH_TYPE=D16
+    RLSW_FRAMEBUFFER_COLOR_TYPE=R5G6B5
+    RLSW_FRAMEBUFFER_OUTPUT_BGRA=false
 )
 
 if (USE_BACKBUFFER)
     list(APPEND raylib_defs 
-        SW_DOUBLE_BUFFERING #SPI can use DMA to transmit asynchronously.
+        RLSW_DOUBLE_BUFFERING #SPI can use DMA to transmit asynchronously.
     )
 endif()
 

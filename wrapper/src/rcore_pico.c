@@ -362,9 +362,30 @@ void SetWindowMaxSize(int width, int height)
 
 static bool hasEverAllocatedBuffers = false;
 
+// COPYPASTED FROM RCORE.C.
+// Ray decided to make that method static on his side so the linker can't find it anymore.
+// So we're just going to cheese it here to stop from forking over it.
+static void PicoInternalSetupViewport(int width, int height)
+{
+    CORE.Window.render.width = width;
+    CORE.Window.render.height = height;
+
+    // Set viewport width and height
+    rlViewport(CORE.Window.renderOffset.x/2, CORE.Window.renderOffset.y/2, CORE.Window.render.width, CORE.Window.render.height);
+
+    rlMatrixMode(RL_PROJECTION);        // Switch to projection matrix
+    rlLoadIdentity();                   // Reset current matrix (projection)
+
+    // Set orthographic projection to current framebuffer size
+    // NOTE: Configured top-left corner as (0, 0)
+    rlOrtho(0, CORE.Window.render.width, CORE.Window.render.height, 0, 0.0f, 1.0f);
+
+    rlMatrixMode(RL_MODELVIEW);         // Switch back to modelview matrix
+    rlLoadIdentity();                   // Reset current matrix (modelview)
+}
+
 // from pico_display.c
 extern void ResizeDisplay(int newWidth, int newHeight);
-extern void SetupViewport(int newWidth, int newHeight);
 // Set window dimensions
 void SetWindowSize(int width, int height)
 {
@@ -398,7 +419,8 @@ void SetWindowSize(int width, int height)
     printf("WARNING: RP2350: Memory fragmentation can occur when changing window size.  Some buffers may end up in PSRAM.\n");
 
     // REMINDER: currentOrientation is constant after compile time.  Resolutions in here will follow those boundaries.
-    SetupViewport(newWidth, newHeight);
+    // We HAVE to do this manually otherwise the restrictions we want won't be applied in time.
+    PicoInternalSetupViewport(newWidth, newHeight);
 
     // Wait until any DMAs are ready, then perform reallocations.
     ResizeDisplay(newWidth, newHeight);
@@ -565,7 +587,7 @@ void DisableCursor(void)
 
 // Get it by force from rlsw.h at link time.
 extern void* swGetColorBuffer(int* width, int* height);
-#ifdef SW_DOUBLE_BUFFERING
+#ifdef RLSW_DOUBLE_BUFFERING
 extern void swSwapColorBuffers();
 #endif
 
@@ -599,7 +621,7 @@ void SwapScreenBuffer(void)
         return;
     }
 
-#ifdef SW_DOUBLE_BUFFERING
+#ifdef RLSW_DOUBLE_BUFFERING
     swSwapColorBuffers();
 #endif
     FlipBuffer(swFramebuffer, swWidth, swHeight);

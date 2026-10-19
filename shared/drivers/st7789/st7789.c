@@ -296,7 +296,7 @@ void ResizeWindowST7789(uint16_t width, uint16_t height, bool circular)
     raset[0] = __builtin_bswap16(raset[0]);
     raset[1] = __builtin_bswap16(raset[1]);
 
-#ifdef SW_DOUBLE_BUFFERING
+#ifdef RLSW_DOUBLE_BUFFERING
     // Wait for previous DMA transfer to complete if raylib is faster than the display
     WaitForDMA();
 #endif
@@ -422,7 +422,7 @@ void InitST7789(uint16_t width, uint16_t height, uint8_t mosi, uint8_t dc, uint8
     //     tight_loop_contents();
     // }
 
-#if SW_DOUBLE_BUFFERING
+#if RLSW_DOUBLE_BUFFERING
     printf("[ST7789] Using DMA to transmit the framebuffer asynchronously.\n");
     LockDMA();
 #else
@@ -438,7 +438,7 @@ void SendBufferST7789(int width, int height, const uint16_t* buffer)
     // The hard cap for the entire transfer is around 41fps, even if DMA is enabled to async it.
     int word_count = width * height;
     
-#ifdef SW_DOUBLE_BUFFERING
+#ifdef RLSW_DOUBLE_BUFFERING
     // Wait for previous DMA transfer to complete if raylib is faster than the display
     WaitForDMA();
     gpio_put(CS, 1);
